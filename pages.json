@@ -1,0 +1,67 @@
+{
+	"pages": [
+		{
+			"path": "pages/hall/index",
+			"style": {
+				"navigationBarTitleText": "产品发现"
+			}
+		},
+		{
+			"path": "pages/detail/index",
+			"style": {
+				"navigationBarTitleText": "产品详情"
+			}
+		},
+		{
+			"path": "pages/compare/index",
+			"style": {
+				"navigationBarTitleText": "产品对比"
+			}
+		},
+		{
+			"path": "pages/portfolio/list",
+			"style": {
+				"navigationBarTitleText": "我的组合"
+			}
+		},
+		{
+			"path": "pages/portfolio/detail",
+			"style": {
+				"navigationBarTitleText": "组合详情"
+			}
+		},
+		{
+			"path": "pages/auth-callback/auth-callback",
+			"style": {
+				"navigationBarTitleText": "登录中",
+				"navigationStyle": "custom"
+			}
+		}
+	],
+	"globalStyle": {
+		"navigationBarTextStyle": "white",
+		"navigationBarTitleText": "理财中心",
+		"navigationBarBackgroundColor": "#667eea",
+		"backgroundColor": "#f5f5f5"
+	},
+	"tabBar": {
+		"color": "#999999",
+		"selectedColor": "#667eea",
+		"borderStyle": "black",
+		"backgroundColor": "#ffffff",
+		"list": [
+			{
+				"pagePath": "pages/hall/index",
+				"text": "产品发现",
+				"iconPath": "static/tab-hall.png",
+				"selectedIconPath": "static/tab-hall-active.png"
+			},
+			{
+				"pagePath": "pages/portfolio/list",
+				"text": "我的组合",
+				"iconPath": "static/tab-holding.png",
+				"selectedIconPath": "static/tab-holding-active.png"
+			}
+		]
+	}
+}

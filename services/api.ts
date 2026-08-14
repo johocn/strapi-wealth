@@ -46,70 +46,9 @@ export function getRecommendations(limit: number = 10) {
   return get(`${V1}/recommend`, { limit }).then(extractList)
 }
 
-// ==================== 自选/收藏 ====================
-export function getCustomerProducts(params = {}) {
-  return get(`${V1}/customer-products`, params).then(extractList)
-}
-
-export function addCustomerProduct(productId: string | number) {
-  return post(`${V1}/customer-products`, { productId }).then(extractItem)
-}
-
-export function removeCustomerProduct(id: string | number) {
-  return del(`${V1}/customer-products/${id}`).then(extractItem)
-}
-
 // ==================== 合规披露 ====================
 export function getDisclosure(productType: string) {
   return get(`${V1}/disclosure`, { productType }).then(extractItem)
-}
-
-// ==================== 以下 API 已废弃，由组合方案替代 ====================
-// export function getMyHoldings(params = {}) {
-//   return get(`${V1}/holdings`, params).then(extractList)
-// }
-//
-// export function getHoldingDetail(id: string | number) {
-//   return get(`${V1}/holdings/${id}`).then(extractItem)
-// }
-//
-// export function createHolding(data: any) {
-//   return post(`${V1}/holdings`, data).then(extractItem)
-// }
-//
-// export function updateHolding(id: string | number, data: any) {
-//   return put(`${V1}/holdings/${id}`, data).then(extractItem)
-// }
-//
-// export function deleteHolding(id: string | number) {
-//   return del(`${V1}/holdings/${id}`).then(extractItem)
-// }
-//
-// // 持仓盈亏时序（市值曲线）
-// export function getHoldingProfitTrend(id: string | number, params = {}) {
-//   return get(`${V1}/holdings/${id}/profit-trend`, params).then(extractItem)
-// }
-
-// ==================== 提醒规则 ====================
-export function getAlertRules(params = {}) {
-  return get(`${V1}/alert-rules`, params).then(extractList)
-}
-
-export function createAlertRule(data: any) {
-  return post(`${V1}/alert-rules`, data).then(extractItem)
-}
-
-export function updateAlertRule(id: string | number, data: any) {
-  return put(`${V1}/alert-rules/${id}`, data).then(extractItem)
-}
-
-export function deleteAlertRule(id: string | number) {
-  return del(`${V1}/alert-rules/${id}`).then(extractItem)
-}
-
-// 提醒日志
-export function getAlertLogs(params = {}) {
-  return get(`${V1}/alert-logs`, params).then(extractList)
 }
 
 // ==================== 评分相关 ====================

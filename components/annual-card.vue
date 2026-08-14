@@ -20,11 +20,11 @@
     <view class="card-annual">
       <view class="annual-main">
         <text class="annual-label">
-          近1月年化
-          <text v-if="isShort" class="estimate-tag">估算</text>
+          {{ isMoney ? '七日年化' : '近1月年化' }}
+          <text v-if="!isMoney && isShort" class="estimate-tag">估算</text>
         </text>
-        <text class="annual-value" :class="getProfitClass(product.latestAnnual1m)">
-          {{ formatPercent(product.latestAnnual1m) }}
+        <text class="annual-value" :class="getProfitClass(displayAnnual)">
+          {{ formatPercent(displayAnnual) }}
         </text>
       </view>
       <view class="annual-sub" v-if="product.latestNav?.unitNav">
@@ -56,6 +56,15 @@ const emit = defineEmits<{
 const isShort = computed(() => {
   const p = props.period || 'm1'
   return p === 'd1' || p === 'd3'
+})
+
+// 货币型/现金管理类产品：有七日年化数据时展示七日年化，否则展示近1月年化
+const isMoney = computed(() => {
+  return props.product.latestSevenDayAnnual !== undefined && props.product.latestSevenDayAnnual !== null
+})
+
+const displayAnnual = computed(() => {
+  return isMoney.value ? props.product.latestSevenDayAnnual : props.product.latestAnnual1m
 })
 
 function handleClick() {

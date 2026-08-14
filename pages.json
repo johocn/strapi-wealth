@@ -52,15 +52,11 @@
 		"list": [
 			{
 				"pagePath": "pages/hall/index",
-				"text": "产品发现",
-				"iconPath": "static/tab-hall.png",
-				"selectedIconPath": "static/tab-hall-active.png"
+				"text": "产品发现"
 			},
 			{
 				"pagePath": "pages/portfolio/list",
-				"text": "我的组合",
-				"iconPath": "static/tab-holding.png",
-				"selectedIconPath": "static/tab-holding-active.png"
+				"text": "我的组合"
 			}
 		]
 	}

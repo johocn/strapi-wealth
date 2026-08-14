@@ -182,6 +182,66 @@
     </view>
 
     <view class="footer-disclaimer">理财非存款，产品有风险，投资需谨慎</view>
+
+    <!-- 预约咨询弹窗 -->
+    <view v-if="showConsultPopup" class="popup-mask" @click="showConsultPopup = false">
+      <view class="popup-card" @click.stop="">
+        <view class="popup-title">预约咨询</view>
+        <view class="popup-product-name">{{ product?.productName }}</view>
+        <view class="popup-field">
+          <text class="popup-label">姓名 <text class="required">*</text></text>
+          <input class="popup-input" v-model="consultForm.name" placeholder="请输入您的姓名" maxlength="20" />
+        </view>
+        <view class="popup-field">
+          <text class="popup-label">手机号 <text class="required">*</text></text>
+          <input class="popup-input" v-model="consultForm.phone" placeholder="请输入11位手机号" type="number" maxlength="11" />
+        </view>
+        <view class="popup-field">
+          <text class="popup-label">咨询方式</text>
+          <view class="channel-tabs">
+            <view
+              v-for="ch in CONSULT_CHANNELS"
+              :key="ch.value"
+              class="channel-tab"
+              :class="{ active: consultForm.preferredChannel === ch.value }"
+              @click="consultForm.preferredChannel = ch.value"
+            >{{ ch.label }}</view>
+          </view>
+        </view>
+        <view class="popup-field">
+          <text class="popup-label">备注</text>
+          <textarea class="popup-textarea" v-model="consultForm.message" placeholder="请输入备注信息（可选）" maxlength="200" />
+        </view>
+        <view class="popup-actions">
+          <view class="popup-btn-cancel" @click="showConsultPopup = false">取消</view>
+          <view class="popup-btn-submit" @click="submitConsultation">提交</view>
+        </view>
+      </view>
+    </view>
+
+    <!-- 创建组合方案弹窗 -->
+    <view v-if="showPortfolioPopup" class="popup-mask" @click="showPortfolioPopup = false">
+      <view class="popup-card" @click.stop="">
+        <view class="popup-title">加入组合方案</view>
+        <view class="popup-product-name">{{ product?.productName }}</view>
+        <view class="popup-field">
+          <text class="popup-label">方案名称 <text class="required">*</text></text>
+          <input class="popup-input" v-model="portfolioForm.planName" placeholder="请输入方案名称" maxlength="30" />
+        </view>
+        <view class="popup-field">
+          <text class="popup-label">配比(%) <text class="required">*</text></text>
+          <input class="popup-input" v-model="portfolioForm.allocationRatio" placeholder="1-100" type="digit" maxlength="3" />
+        </view>
+        <view class="popup-field">
+          <text class="popup-label">假设金额（可选）</text>
+          <input class="popup-input" v-model="portfolioForm.totalAmount" placeholder="请输入假设金额（元）" type="digit" />
+        </view>
+        <view class="popup-actions">
+          <view class="popup-btn-cancel" @click="showPortfolioPopup = false">取消</view>
+          <view class="popup-btn-submit" @click="submitCreatePortfolio">创建</view>
+        </view>
+      </view>
+    </view>
   </view>
 </template>
 
@@ -194,7 +254,7 @@ import StarRating from '@/components/star-rating.vue'
 import {
   getProductDetail, getProductAnnualSnapshot, getProductRiskMetric,
   getProductNavSeries, getProductYearlyReturn,
-  getProductScore, getRiskDisclosure, createConsultation
+  getProductScore, getRiskDisclosure, createConsultation, createPortfolioPlan
 } from '@/services/api'
 import {
   formatPercent, getProfitClass, getRankClass, getTypeLabel,
@@ -217,6 +277,28 @@ const navOpen = ref(false)
 const scoreData = ref<any>(null)
 const riskDisclosures = ref<string[]>([])
 const selectedPeriod = ref('m1')
+
+// 预约咨询弹窗
+const showConsultPopup = ref(false)
+const CONSULT_CHANNELS = [
+  { label: '线上', value: 'online' },
+  { label: '网点', value: 'branch' },
+  { label: '电话', value: 'phone' },
+]
+const consultForm = ref({
+  name: '',
+  phone: '',
+  preferredChannel: 'online' as 'online' | 'branch' | 'phone',
+  message: '',
+})
+
+// 创建组合方案弹窗
+const showPortfolioPopup = ref(false)
+const portfolioForm = ref({
+  planName: '',
+  allocationRatio: '1',
+  totalAmount: '',
+})
 
 const navs = computed<any[]>(() => {
   const p = product.value
@@ -310,8 +392,59 @@ function onAddToPortfolio() {
     uni.showToast({ title: '请先登录', icon: 'none' })
     return
   }
-  // 跳转到组合方案列表页，带上当前产品ID
-  uni.switchTab({ url: '/pages/portfolio/list' })
+  // 初始化表单默认值并弹出创建弹窗
+  portfolioForm.value = {
+    planName: (product.value?.productName || '产品') + '组合',
+    allocationRatio: '1',
+    totalAmount: '',
+  }
+  showPortfolioPopup.value = true
+}
+
+// 提交创建组合方案
+async function submitCreatePortfolio() {
+  // 表单验证
+  const ratio = Number(portfolioForm.value.allocationRatio)
+  if (!portfolioForm.value.planName.trim()) {
+    uni.showToast({ title: '请输入方案名称', icon: 'none' })
+    return
+  }
+  if (isNaN(ratio) || ratio < 1 || ratio > 100) {
+    uni.showToast({ title: '配比需在1-100之间', icon: 'none' })
+    return
+  }
+  const pid = product.value?.id || product.value?.documentId
+  if (!pid) {
+    uni.showToast({ title: '产品信息缺失', icon: 'none' })
+    return
+  }
+  uni.showLoading({ title: '创建中...' })
+  try {
+    const res = await createPortfolioPlan({
+      planName: portfolioForm.value.planName.trim(),
+      planType: 'custom',
+      products: [{
+        productId: product.value?.id,
+        productName: product.value?.productName,
+        allocationRatio: ratio / 100,
+        addedDate: new Date().toISOString().split('T')[0],
+      }],
+      totalAmount: portfolioForm.value.totalAmount ? Number(portfolioForm.value.totalAmount) : null,
+    })
+    uni.hideLoading()
+    showPortfolioPopup.value = false
+    uni.showToast({ title: '创建成功', icon: 'success' })
+    // 跳转到组合详情页
+    const newId = res?.id || res?.documentId
+    if (newId) {
+      setTimeout(() => {
+        uni.navigateTo({ url: `/pages/portfolio/detail?id=${newId}` })
+      }, 1000)
+    }
+  } catch (e: any) {
+    uni.hideLoading()
+    uni.showToast({ title: e.message || '创建失败', icon: 'none' })
+  }
 }
 
 // 预约咨询
@@ -321,23 +454,49 @@ function onConsult() {
     uni.showToast({ title: '请先登录', icon: 'none' })
     return
   }
-  uni.showModal({
-    title: '预约咨询',
-    content: `确定预约咨询 ${product.value?.productName} 吗？`,
-    success: async (res) => {
-      if (res.confirm) {
-        try {
-          await createConsultation({
-            productId: product.value?.id || product.value?.documentId,
-            channel: 'online',
-          })
-          uni.showToast({ title: '预约请求已提交', icon: 'success' })
-        } catch (e: any) {
-          uni.showToast({ title: e.message || '预约失败', icon: 'none' })
-        }
-      }
-    },
-  })
+  // 重置表单并弹出咨询弹窗
+  consultForm.value = {
+    name: '',
+    phone: '',
+    preferredChannel: 'online',
+    message: '',
+  }
+  showConsultPopup.value = true
+}
+
+// 提交预约咨询
+async function submitConsultation() {
+  // 表单验证
+  const { name, phone } = consultForm.value
+  if (!name.trim()) {
+    uni.showToast({ title: '请输入姓名', icon: 'none' })
+    return
+  }
+  if (!phone || !/^1\d{10}$/.test(phone)) {
+    uni.showToast({ title: '请输入正确的11位手机号', icon: 'none' })
+    return
+  }
+  const pid = product.value?.id || product.value?.documentId
+  if (!pid) {
+    uni.showToast({ title: '产品信息缺失', icon: 'none' })
+    return
+  }
+  uni.showLoading({ title: '提交中...' })
+  try {
+    await createConsultation({
+      name: consultForm.value.name.trim(),
+      phone: consultForm.value.phone,
+      productId: product.value?.id || product.value?.documentId,
+      preferredChannel: consultForm.value.preferredChannel,
+      message: consultForm.value.message,
+    })
+    uni.hideLoading()
+    showConsultPopup.value = false
+    uni.showToast({ title: '预约请求已提交', icon: 'success' })
+  } catch (e: any) {
+    uni.hideLoading()
+    uni.showToast({ title: e.message || '预约失败', icon: 'none' })
+  }
 }
 
 async function loadAll(id: string) {
@@ -563,4 +722,83 @@ page { background: #f5f5f5; }
 
 /* 给底部操作栏留空间 */
 .page-container { padding-bottom: 120rpx; }
+
+/* 弹窗样式 */
+.popup-mask {
+  position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
+  z-index: 200;
+  display: flex; align-items: flex-end; justify-content: center;
+}
+.popup-card {
+  width: 100%; background: #fff;
+  border-radius: 24rpx 24rpx 0 0;
+  padding: 32rpx 30rpx calc(32rpx + env(safe-area-inset-bottom));
+  box-sizing: border-box;
+  animation: popup-slide-up 0.25s ease-out;
+}
+@keyframes popup-slide-up {
+  from { transform: translateY(100%); }
+  to { transform: translateY(0); }
+}
+.popup-title {
+  font-size: 34rpx; font-weight: bold; color: #333;
+  text-align: center; margin-bottom: 16rpx;
+}
+.popup-product-name {
+  font-size: 26rpx; color: #667eea; text-align: center;
+  margin-bottom: 24rpx; padding: 12rpx 0;
+  background: #f0f4ff; border-radius: 8rpx;
+}
+.popup-field {
+  margin-bottom: 24rpx;
+}
+.popup-label {
+  font-size: 26rpx; color: #666; display: block; margin-bottom: 10rpx;
+}
+.required { color: #f5222d; }
+.popup-input {
+  width: 100%; box-sizing: border-box;
+  background: #f5f5f5; border-radius: 8rpx;
+  padding: 20rpx 24rpx; font-size: 28rpx; color: #333;
+  border: 1rpx solid transparent;
+}
+.popup-input:focus { border-color: #667eea; background: #fff; }
+.popup-textarea {
+  width: 100%; box-sizing: border-box; min-height: 120rpx;
+  background: #f5f5f5; border-radius: 8rpx;
+  padding: 20rpx 24rpx; font-size: 28rpx; color: #333;
+  border: 1rpx solid transparent;
+}
+.popup-textarea:focus { border-color: #667eea; background: #fff; }
+/* 咨询方式选择 */
+.channel-tabs {
+  display: flex; gap: 16rpx;
+}
+.channel-tab {
+  flex: 1; text-align: center; font-size: 26rpx;
+  padding: 16rpx 0; border-radius: 8rpx;
+  background: #f5f5f5; color: #666;
+  border: 1rpx solid transparent;
+}
+.channel-tab.active {
+  background: #f0f4ff; color: #667eea; font-weight: bold;
+  border-color: #667eea;
+}
+/* 弹窗操作按钮 */
+.popup-actions {
+  display: flex; gap: 20rpx; margin-top: 12rpx;
+}
+.popup-btn-cancel {
+  flex: 1; text-align: center; font-size: 28rpx; font-weight: bold;
+  padding: 24rpx 0; border-radius: 44rpx;
+  background: #f5f5f5; color: #666;
+}
+.popup-btn-submit {
+  flex: 1.5; text-align: center; font-size: 30rpx; font-weight: bold;
+  padding: 24rpx 0; border-radius: 44rpx;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: #fff;
+}
+.popup-btn-cancel:active, .popup-btn-submit:active { opacity: 0.85; }
 </style>

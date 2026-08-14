@@ -160,19 +160,23 @@ export function flattenAttributes(data: any): any {
 }
 
 // 从响应中提取列表
+// 后端统一响应格式：{ code, msg, data: { records, page, pageSize, total } }
 export function extractList(response: any): { list: any[]; pagination: any } {
   if (!response) return { list: [], pagination: {} }
-  if (response.records && response.total !== undefined) {
-    return { list: flattenAttributes(response.records), pagination: { total: response.total } }
+  // 优先识别后端统一格式 data.records
+  const payload = response.data ?? response
+  if (payload.records && payload.total !== undefined) {
+    return { list: flattenAttributes(payload.records), pagination: { total: payload.total, page: payload.page, pageSize: payload.pageSize } }
   }
-  if (response.list && Array.isArray(response.list)) {
-    return { list: flattenAttributes(response.list), pagination: response.pagination || {} }
+  if (payload.list && Array.isArray(payload.list)) {
+    return { list: flattenAttributes(payload.list), pagination: payload.pagination || {} }
   }
-  if (response.data) {
+  if (Array.isArray(payload)) {
+    return { list: flattenAttributes(payload), pagination: {} }
+  }
+  // Strapi 原生格式 { data: [...], meta: { pagination } }
+  if (response.data && Array.isArray(response.data)) {
     return { list: flattenAttributes(response.data), pagination: response.meta?.pagination ?? {} }
-  }
-  if (Array.isArray(response)) {
-    return { list: flattenAttributes(response), pagination: {} }
   }
   return { list: [], pagination: {} }
 }

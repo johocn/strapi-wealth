@@ -71,6 +71,44 @@
         <text class="feedback good" v-if="progress?.finaleClaimed">终章积分已到账，恭喜完成任务！</text>
       </view>
     </template>
+
+    <!-- 沉浸剧情层 -->
+    <view class="story-overlay" v-if="stageOpen">
+      <view class="story-card">
+        <text class="story-title" v-if="curNodes[curIdx]?.type !== 'tap'">{{ (stationScript(Number(curOrder)) as any)?.length ? '平安钟楼 · 三声钟一人愿' : '' }}</text>
+
+        <view v-if="curNodes[curIdx]?.type === 'narrative'" class="story-feed">
+          <text v-if="storyFeed.speaker" class="story-speaker">{{ storyFeed.speaker }}</text>
+          <text class="story-text">{{ storyFeed.text }}</text>
+          <view class="story-next" @click="advance"><text>继续 ›</text></view>
+        </view>
+
+        <view v-else-if="curNodes[curIdx]?.type === 'input'" class="story-feed">
+          <text class="story-text">{{ storyFeed.text || '这一愿，你是替谁许的？' }}</text>
+          <input class="story-input" v-model="wishSel" :placeholder="'写下你在乎的人，或想护的人'" />
+          <view class="story-next" @click="submitWish"><text>落下絮条 ›</text></view>
+        </view>
+
+        <view v-else-if="curNodes[curIdx]?.type === 'tap'" class="story-ring">
+          <text class="ring-hint">敲钟三下 · 已敲 {{ tapCount }}/{{ curNodes[curIdx].target }}</text>
+          <view class="ring-bell" @click="tapRing"><text>🔔 敲钟</text></view>
+          <text class="ring-feed">{{ storyFeed.text }}</text>
+        </view>
+
+        <view v-else-if="curNodes[curIdx]?.type === 'choice'" class="story-feed">
+          <text class="story-text">{{ storyFeed.text || '你最信什么？' }}</text>
+          <view class="story-choice" v-for="o in curNodes[curIdx].options" :key="o.id" @click="pickChoice(o.id, o.label)">
+            <text>{{ o.label }}</text>
+          </view>
+        </view>
+
+        <view v-else-if="curNodes[curIdx]?.type === 'settle'" class="story-feed">
+          <text class="story-relic">{{ doneRelic || '线索已入行囊' }}</text>
+          <text class="story-text">回声指向关帝庙——那里有位"话多的大爷"。</text>
+          <view class="story-next"><text>完成本站 ›</text></view>
+        </view>
+      </view>
+    </view>
   </view>
 </template>
 
@@ -84,6 +122,8 @@ import {
   tourAnswerMain,
   tourClaimFinale,
 } from '../../services/api'
+import { stationScripts, type TourNode } from '../../data/tour-scenes'
+import { getToken } from '../../utils/storage'
 
 const documentId = ref('')
 const story = ref<any>(null)
@@ -96,6 +136,29 @@ const mainAnswer = ref('')
 const answering = ref(false)
 const answerFeedback = ref('')
 const claiming = ref(false)
+
+const stageOpen = ref(false)
+const curOrder = ref<string>('')
+const curNodes = ref<TourNode[]>([])
+const curIdx = ref(0)
+const storyFeed = ref<{ speaker?: string; text: string; tone?: string }>({ text: '' })
+const wishSel = ref('')
+const tapCount = ref(0)
+const doneRelic = ref('')
+
+function storyKey() {
+  const uid = (getToken() || '').slice(-6) || 'anon'
+  return `tour_story_${documentId.value}_${uid}`
+}
+function loadStoryAll(): Record<string, any> {
+  try { return JSON.parse(uni.getStorageSync(storyKey()) || '{}') } catch { return {} }
+}
+function saveStoryAll(m: Record<string, any>) {
+  uni.setStorageSync(storyKey(), JSON.stringify(m))
+}
+function hasStoryDone(order: number): boolean {
+  return !!loadStoryAll()[String(order)]?.done
+}
 
 const storyRoles = computed(() => (Array.isArray(story.value?.roles) ? story.value.roles : []))
 const stations = computed(() =>
@@ -141,7 +204,11 @@ async function loadStory() {
 }
 
 async function submitRole() {
-  if (!selectedRole.value || submittingRole.value) return
+  if (submittingRole.value) return
+  if (!selectedRole.value) {
+    uni.showToast({ title: '请先选择一个角色', icon: 'none' })
+    return
+  }
   submittingRole.value = true
   try {
     const res = await tourChooseRole(documentId.value, selectedRole.value)
@@ -154,7 +221,20 @@ async function submitRole() {
   }
 }
 
-async function checkin(order: number) {
+function stationScript(order: number): TourNode[] {
+  return stationScripts[String(order)]?.nodes || []
+}
+
+function checkin(order: number) {
+  const nodes = stationScript(order)
+  if (nodes.length && !hasStoryDone(order)) {
+    openStage(String(order), nodes)
+    return
+  }
+  doCheckin(order)
+}
+
+async function doCheckin(order: number) {
   try {
     const res = await tourCheckinStation(documentId.value, order)
     progress.value = res?.progress ?? progress.value
@@ -162,6 +242,59 @@ async function checkin(order: number) {
   } catch (e: any) {
     uni.showToast({ title: e?.message || '打卡失败', icon: 'none' })
   }
+}
+
+function openStage(order: string, nodes: TourNode[]) {
+  curOrder.value = order
+  curNodes.value = nodes
+  curIdx.value = loadStoryAll()[order]?.node ?? 0
+  tapCount.value = 0
+  wishSel.value = ''
+  doneRelic.value = ''
+  stageOpen.value = true
+  applyNode()
+}
+function applyNode() {
+  const n = curNodes.value[curIdx.value]
+  if (n?.type === 'narrative') storyFeed.value = { speaker: n.speaker, text: n.text, tone: 'narrative' }
+}
+function advance() {
+  curIdx.value += 1
+  // 记进度（续玩）
+  const all = loadStoryAll(); all[curOrder.value] = { ...(all[curOrder.value] || {}), node: curIdx.value }
+  saveStoryAll(all)
+  if (curIdx.value >= curNodes.value.length) { finishStory(); return }
+  applyNode()
+}
+function submitWish() {
+  if (!wishSel.value.trim()) return uni.showToast({ title: '写点什么吧', icon: 'none' })
+  const all = loadStoryAll(); all[curOrder.value] = { ...(all[curOrder.value] || {}), wish: wishSel.value, node: curIdx.value }
+  saveStoryAll(all)
+  advance()
+}
+function tapRing() {
+  uni.vibrateShort?.()
+  const rings = (curNodes.value[curIdx.value] as any)?.rings || []
+  tapCount.value += 1
+  storyFeed.value = { text: rings[tapCount.value - 1], tone: 'ring' }
+  if (tapCount.value >= ((curNodes.value[curIdx.value] as any)?.target ?? 999)) {
+    setTimeout(() => advance(), 600)
+  }
+}
+function pickChoice(id: string, label: string) {
+  const n = curNodes.value[curIdx.value] as any
+  const opt = n.options.find((o: any) => o.id === id)
+  storyFeed.value = { text: opt?.note || label, tone: 'choice' }
+  const all = loadStoryAll(); all[curOrder.value] = { ...(all[curOrder.value] || {}), choice: id, node: curIdx.value }
+  saveStoryAll(all)
+  setTimeout(() => advance(), 800)
+}
+function finishStory() {
+  const n = curNodes.value[curIdx.value - 1] as any
+  doneRelic.value = n?.relic || ''
+  const all = loadStoryAll(); all[curOrder.value] = { ...(all[curOrder.value] || {}), done: true, relic: doneRelic.value }
+  saveStoryAll(all)
+  setTimeout(() => { stageOpen.value = false; doCheckin(Number(curOrder.value)) }, 900)
 }
 
 async function submitAnswer() {
@@ -235,4 +368,18 @@ async function claimFinale() {
 .feedback { display: block; margin-top: 16rpx; font-size: 26rpx; color: #c0392b; }
 .feedback.good { color: #27ae60; }
 .finale-hint { display: block; font-size: 26rpx; color: #999; margin-bottom: 20rpx; }
+.story-overlay { position: fixed; inset: 0; z-index: 99; background: rgba(20,16,12,.92); display: flex; align-items: center; justify-content: center; padding: 48rpx; }
+.story-card { width: 100%; max-width: 640rpx; background: #2f2a24; color: #f3ead8; border-radius: 20rpx; padding: 40rpx 32rpx; min-height: 320rpx; }
+.story-title { display: block; font-size: 28rpx; color: #d9a44c; margin-bottom: 24rpx; }
+.story-feed { display: flex; flex-direction: column; gap: 20rpx; }
+.story-speaker { color: #d9a44c; font-weight: 600; }
+.story-text { font-size: 32rpx; line-height: 1.7; color: #f3ead8; }
+.story-next { align-self: flex-end; background: #d9a44c; color: #2f2a24; border-radius: 999rpx; padding: 14rpx 34rpx; font-weight: 600; }
+.story-input { background: #3c362d; color: #f3ead8; border-radius: 12rpx; padding: 20rpx 24rpx; font-size: 30rpx; }
+.story-choice { background: #3c362d; border: 2rpx solid #6b4f2a; border-radius: 14rpx; padding: 24rpx; text-align: center; }
+.story-ring { display: flex; flex-direction: column; align-items: center; gap: 28rpx; padding: 20rpx 0; }
+.ring-hint { color: #c9ba9a; font-size: 28rpx; }
+.ring-bell { width: 220rpx; height: 220rpx; border-radius: 50%; background: radial-gradient(circle at 30% 30%, #d9a44c, #6b4f2a); display: flex; align-items: center; justify-content: center; font-size: 44rpx; box-shadow: 0 10rpx 30rpx rgba(217,164,76,.35); }
+.ring-feed { text-align: center; font-size: 28rpx; color: #f3ead8; min-height: 40rpx; }
+.story-relic { text-align: center; color: #d9a44c; font-weight: 700; font-size: 32rpx; }
 </style>

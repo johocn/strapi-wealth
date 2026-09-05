@@ -31,10 +31,12 @@
           :return-score="scoreData.returnScore"
           :volatility-score="scoreData.volatilityScore"
           :drawdown-score="scoreData.drawdownScore"
-          :peer-rank-score="scoreData.peerRankScore"
           :composite-score="scoreData.compositeScore"
         />
-        <text class="score-disclaimer">评分基于近{{ periodLabel }}数据加权计算，仅供参考</text>
+        <view class="score-footer">
+          <text class="score-disclaimer">评分基于近{{ periodLabel }}数据加权计算，仅供参考</text>
+          <text class="score-help" @click="showScoreExplain = true">评分说明 ›</text>
+        </view>
       </view>
 
       <!-- 动态风险揭示 -->
@@ -48,7 +50,10 @@
 
       <!-- 2. 年化趋势 -->
       <view class="card">
-        <view class="section-title">年化趋势</view>
+        <view class="section-title annual-section-title">
+          <text>年化趋势</text>
+          <text class="annual-help" @click="showAnnualExplain = true">年化计算说明 ›</text>
+        </view>
         <view class="period-tabs">
           <view
             v-for="p in PERIODS"
@@ -56,7 +61,10 @@
             class="tab"
             :class="{ active: period === p.key }"
             @click="period = p.key"
-          >{{ p.label }}</view>
+          >
+            <text class="tab-label">{{ p.label }}</text>
+            <text class="tab-value" :class="getProfitClass(periodValue(p.key))">{{ formatPercent(periodValue(p.key)) }}</text>
+          </view>
         </view>
 
         <view class="annual-big">
@@ -64,24 +72,47 @@
           <text class="annual-num" :class="getProfitClass(currentAnnual)">{{ formatPercent(currentAnnual) }}</text>
         </view>
 
-        <view class="chart">
-          <view
-            v-for="p in PERIODS"
-            :key="p.key"
-            class="bar-wrap"
-            @click="period = p.key"
-          >
-            <view class="bar-track">
-              <view
-                class="bar"
-                :class="[getProfitClass(periodValue(p.key)), { active: period === p.key }]"
-                :style="{ height: barHeight(p.key) }"
-              ></view>
+        <!-- 折线图：有≥2个数据点即展示，X轴标注起止完整日期 -->
+        <template v-if="annualTrend.points.length >= 2">
+          <view class="line-chart">
+            <view class="line-chart-body">
+              <view class="line-chart-yaxis">
+                <text class="y-label">{{ formatPercent(annualTrend.adjustedMax, 4) }}</text>
+                <text class="y-label">{{ formatPercent(annualTrend.adjustedMin, 4) }}</text>
+              </view>
+              <view class="line-chart-plot">
+                <view class="line-chart-svg" v-html="lineChartSvg"></view>
+                <!-- 点位点击热区 + tooltip -->
+                <view
+                  v-for="(pt, i) in annualTrend.points"
+                  :key="'hit' + i"
+                  class="chart-hit"
+                  :style="{ left: pt.x + '%', top: pt.y + '%' }"
+                  @click="onPointTap(pt)"
+                ></view>
+                <view
+                  v-if="activePoint"
+                  class="chart-tip"
+                  :style="tooltipStyle"
+                  @click="onPointTap(activePoint)"
+                >
+                  <text class="tip-date">{{ activePoint.fullDate }}</text>
+                  <text class="tip-value" :class="getProfitClass(activePoint.value)">{{ formatPercent(activePoint.value, 4) }}</text>
+                </view>
+              </view>
             </view>
-            <text class="bar-label" :class="{ active: period === p.key }">{{ p.label }}</text>
+            <view class="line-chart-xaxis">
+              <text class="x-label">{{ annualTrend.startLabel }}</text>
+              <text class="x-label">{{ annualTrend.endLabel }}</text>
+            </view>
+            <view class="chart-note">每个点代表以该日期为截止日的{{ getPeriodLabel(period) }}区间年化收益，点击点位查看详情</view>
           </view>
-        </view>
-        <view class="chart-note">历史业绩不预示未来收益</view>
+          <view class="chart-note chart-note-orange">历史业绩不预示未来收益</view>
+        </template>
+        <template v-else>
+          <view class="chart-note">近{{ getPeriodLabel(period) }}可用数据点不足，暂不展示趋势</view>
+          <view class="chart-note chart-note-orange">历史业绩不预示未来收益</view>
+        </template>
       </view>
 
       <!-- 3. 风险指标 -->
@@ -90,37 +121,33 @@
         <view class="metric-grid">
           <view class="metric-cell">
             <text class="metric-label">波动率</text>
-            <text class="metric-value">{{ formatPercent(riskMetric?.volatility) }}</text>
+            <text class="metric-value">{{ formatPercent(riskMetricData?.volatility) }}</text>
+            <text class="metric-desc">年化波动幅度，越低越稳健</text>
           </view>
           <view class="metric-cell">
             <text class="metric-label">最大回撤</text>
-            <text class="metric-value down">{{ formatPercent(riskMetric?.maxDrawdown) }}</text>
-          </view>
-          <view class="metric-cell">
-            <text class="metric-label">Calmar</text>
-            <text class="metric-value">{{ formatCalmar(riskMetric?.calmar) }}</text>
-          </view>
-          <view class="metric-cell">
-            <text class="metric-label">同类排名</text>
-            <text class="metric-value" :class="getRankClass(riskMetric?.peerRankPercentile)">
-              前 {{ formatPercent(riskMetric?.peerRankPercentile) }}
-            </text>
+            <text class="metric-value down">{{ formatPercent(riskMetricData?.maxDrawdown) }}</text>
+            <text class="metric-desc">区间内最大下跌幅度</text>
           </view>
         </view>
+        <view class="metric-note">波动率、最大回撤基于近{{ getPeriodLabel(riskMetricPeriod) }}净值数据计算，同类样本过少不提供排名</view>
       </view>
 
-      <!-- 4. 净值走势图 -->
-      <view class="card" v-if="navTrend.bars.length >= 2">
+      <!-- 4. 净值走势图（折线图） -->
+      <view class="card" v-if="navTrend.points.length >= 2">
         <view class="section-title">净值走势</view>
         <view class="nav-trend-chart">
-          <view class="trend-bars">
-            <view
-              v-for="(bar, i) in navTrend.bars"
-              :key="i"
-              class="trend-bar-wrap"
-            >
-              <view class="trend-bar" :style="{ height: bar.height + '%' }"></view>
+          <view class="line-chart-body">
+            <view class="line-chart-yaxis">
+              <text class="y-label">{{ navTrend.max.toFixed(4) }}</text>
+              <text class="y-label">{{ navTrend.min.toFixed(4) }}</text>
             </view>
+            <view class="line-chart-svg" v-html="navLineSvg"></view>
+          </view>
+          <view class="line-chart-xaxis">
+            <text class="x-label">{{ navTrend.points[0].date }}</text>
+            <text class="x-label">{{ navTrend.points[Math.floor(navTrend.points.length / 2)].date }}</text>
+            <text class="x-label">{{ navTrend.points[navTrend.points.length - 1].date }}</text>
           </view>
           <view class="trend-info">
             <text class="trend-min">最低: {{ navTrend.min.toFixed(4) }}</text>
@@ -163,7 +190,7 @@
             <view v-for="(n, i) in navs" :key="i" class="nav-row">
               <text class="nav-date">{{ n.navDate || n.date || '--' }}</text>
               <text class="nav-unit">{{ n.unitNav ?? '--' }}</text>
-              <text class="nav-acc">{{ n.accumulatedNav ?? n.accumNav ?? '--' }}</text>
+              <text class="nav-acc">{{ n.accNav ?? n.accumulatedNav ?? n.accumNav ?? '--' }}</text>
             </view>
           </view>
         </view>
@@ -242,6 +269,67 @@
         </view>
       </view>
     </view>
+
+    <!-- 年化计算说明弹窗 -->
+    <view v-if="showAnnualExplain" class="popup-mask" @click="showAnnualExplain = false">
+      <view class="popup-card" @click.stop="">
+        <view class="popup-title">年化收益计算说明</view>
+        <view class="explain-body">
+          <view class="explain-formula">
+            <text class="explain-line">年化收益率 = (期末净值 / 期初净值) ^ (365 / 区间自然日天数) - 1</text>
+          </view>
+          <view class="explain-note">按复利公式计算，区间为所选周期的起止日：</view>
+          <view class="explain-item">
+            <text class="explain-label">期末净值</text>
+            <text class="explain-desc">截止日当天的单位净值</text>
+          </view>
+          <view class="explain-item">
+            <text class="explain-label">期初净值</text>
+            <text class="explain-desc">周期起点前一交易日的单位净值</text>
+          </view>
+          <view class="explain-item">
+            <text class="explain-label">区间自然日天数</text>
+            <text class="explain-desc">按自然日计算，含周末节假日</text>
+          </view>
+          <view class="explain-note">示例：1个月年化 = (最新净值 / 1个月前净值) ^ (365 / 30) - 1</view>
+          <view class="explain-warn">货币基金按万份收益单利折算年化，与净值复利口径不同。</view>
+        </view>
+        <view class="popup-actions">
+          <view class="popup-btn-submit" @click="showAnnualExplain = false">我知道了</view>
+        </view>
+      </view>
+    </view>
+
+    <!-- 评分说明弹窗 -->
+    <view v-if="showScoreExplain" class="popup-mask" @click="showScoreExplain = false">
+      <view class="popup-card" @click.stop="">
+        <view class="popup-title">综合评分说明</view>
+        <view class="explain-body">
+          <view class="explain-formula">
+            <text class="explain-line">综合评分 = 收益得分 × {{ formatWeight(scoreData?.weights?.returns) }}</text>
+            <text class="explain-line">　　+ 波动率得分 × {{ formatWeight(scoreData?.weights?.volatility) }}</text>
+            <text class="explain-line">　　+ 回撤得分 × {{ formatWeight(scoreData?.weights?.drawdown) }}</text>
+          </view>
+          <view class="explain-note">各维度按绝对标尺归一化到 0-100 分，不依赖同类产品数量：</view>
+          <view class="explain-item">
+            <text class="explain-label">收益得分</text>
+            <text class="explain-desc">年化收益达到 {{ formatPercent(scoreData?.scales?.returnScale, 0) }} 即为满分</text>
+          </view>
+          <view class="explain-item">
+            <text class="explain-label">波动率得分</text>
+            <text class="explain-desc">波动率越低越好，达到 {{ formatPercent(scoreData?.scales?.volatilityScale, 0) }} 即 0 分</text>
+          </view>
+          <view class="explain-item">
+            <text class="explain-label">回撤得分</text>
+            <text class="explain-desc">回撤越小越好，达到 -{{ formatPercent(scoreData?.scales?.drawdownScale, 0) }} 即 0 分</text>
+          </view>
+          <view class="explain-warn">评分仅基于历史数据加权计算，不构成投资建议。</view>
+        </view>
+        <view class="popup-actions">
+          <view class="popup-btn-submit" @click="showScoreExplain = false">我知道了</view>
+        </view>
+      </view>
+    </view>
   </view>
 </template>
 
@@ -257,8 +345,8 @@ import {
   getProductScore, getRiskDisclosure, createConsultation, createPortfolioPlan
 } from '@/services/api'
 import {
-  formatPercent, getProfitClass, getRankClass, getTypeLabel,
-  getPeriodLabel, PERIODS, formatDate
+  formatPercent, getProfitClass, getTypeLabel,
+  getPeriodLabel, PERIODS, formatDate, formatDateShort
 } from '../../utils/format'
 import { getLoginState } from '../../utils/storage'
 
@@ -272,6 +360,8 @@ const productId = ref<string | number>('')
 
 const period = ref('m1')
 const navOpen = ref(false)
+const showScoreExplain = ref(false)
+const showAnnualExplain = ref(false)
 
 // 评分数据
 const scoreData = ref<any>(null)
@@ -301,17 +391,40 @@ const portfolioForm = ref({
 })
 
 const navs = computed<any[]>(() => {
-  const p = product.value
-  if (!p) return []
-  const list = p.navs || p.navRecords || p.navList || p.navSeries || []
+  const list = navSeries.value || []
   return Array.isArray(list) ? list.slice(0, 10) : []
 })
+
+// 周期 key → 后端 API 字段名映射
+const PERIOD_FIELD_MAP: Record<string, string> = {
+  'd1': 'annual1d',
+  'd3': 'annual3d',
+  'w1': 'annual7d',
+  'w2': 'annual2w',
+  'm1': 'annual1m',
+  'm3': 'annual3m',
+  'm6': 'annual6m',
+  'y1': 'annual1y',
+}
 
 function periodValue(key: string): number | null {
   const s = snapshot.value
   if (!s) return null
-  const direct = s[key]
+  const field = PERIOD_FIELD_MAP[key]
+  if (!field) return null
+
+  // 优先从 records 中取最新一条（后端统一的 paginatedResponse 格式）
+  if (s.records && Array.isArray(s.records) && s.records.length > 0) {
+    const latest = s.records[0]
+    const v = latest[field]
+    if (typeof v === 'number') return v
+  }
+
+  // 直接字段查找
+  const direct = s[field]
   if (typeof direct === 'number') return direct
+
+  // 兼容旧格式（series/annuals/list/points）
   const series = s.series || s.annuals || s.list || s.points
   if (Array.isArray(series)) {
     const item = series.find((it: any) => it.period === key)
@@ -322,42 +435,163 @@ function periodValue(key: string): number | null {
 
 const currentAnnual = computed(() => periodValue(period.value))
 
-const maxAnnualAbs = computed(() => {
-  let max = 0
-  for (const p of PERIODS) {
-    const v = periodValue(p.key)
-    if (v !== null && Math.abs(v) > max) max = Math.abs(v)
+// 点位点击详情
+const activePoint = ref<{ date: string; value: number; x: number; y: number } | null>(null)
+function onPointTap(p: any) {
+  activePoint.value = activePoint.value?.date === p.date ? null : p
+}
+const tooltipStyle = computed(() => {
+  const p = activePoint.value
+  if (!p) return {}
+  return {
+    left: p.x + '%',
+    top: p.y + '%',
   }
-  return max || 1
 })
 
-function barHeight(key: string): string {
-  const v = periodValue(key)
-  if (v === null) return '0rpx'
-  const ratio = Math.min(Math.abs(v) / maxAnnualAbs.value, 1)
-  return Math.max(ratio * 160, 6) + 'rpx'
-}
+// 风险指标：按选中周期取值（后端返回 {m1:{volatility,...}, m3:{...}}）
+const riskMetricPeriod = computed(() => {
+  // 取最近的可用周期，优先 m1 → m3 → m6 → y1
+  const rm = riskMetric.value
+  if (!rm) return 'm1'
+  return ['m1', 'm3', 'm6', 'y1'].find(p => rm[p]) || 'm1'
+})
+const riskMetricData = computed(() => {
+  const rm = riskMetric.value
+  if (!rm) return null
+  return rm[riskMetricPeriod.value] || null
+})
 
-function formatCalmar(val: number | null | undefined): string {
-  if (val === null || val === undefined) return '--'
-  return Number(val).toFixed(2)
-}
+// 折线图数据（选中周期的年化趋势）
+const annualTrend = computed(() => {
+  const s = snapshot.value
+  if (!s || !s.records || !Array.isArray(s.records) || s.records.length < 2) {
+    return { points: [], min: 0, max: 0, range: 0, startLabel: '', endLabel: '' }
+  }
+  const field = PERIOD_FIELD_MAP[period.value]
+  if (!field) return { points: [], min: 0, max: 0, range: 0, startLabel: '', endLabel: '' }
 
-// 净值走势图数据（取最近20条，倒序变正序）
-const navTrend = computed(() => {
-  const data = navSeries.value.slice(0, 20).reverse()
-  if (data.length < 2) return { bars: [], min: 0, max: 0, range: 0 }
-  const values = data.map((d: any) => Number(d.unitNav || 0)).filter(v => v > 0)
-  if (values.length < 2) return { bars: [], min: 0, max: 0, range: 0 }
+  // 按日期升序排列
+  const data = [...s.records].reverse()
+  const values = data
+    .map((d: any) => d[field])
+    .filter((v: any) => v !== null && v !== undefined) as number[]
+  if (values.length < 2) return { points: [], min: 0, max: 0, range: 0, startLabel: '', endLabel: '' }
+
   const min = Math.min(...values)
   const max = Math.max(...values)
   const range = max - min || 0.0001
-  const bars = data.map((d: any) => {
-    const v = Number(d.unitNav || 0)
-    const height = v > 0 ? Math.max(((v - min) / range) * 100, 4) : 0
-    return { date: formatDate(d.navDate || d.date), value: v, height }
-  })
-  return { bars, min, max, range }
+  const padding = range * 0.15
+  const adjustedMin = min - padding
+  const adjustedRange = max - adjustedMin || 0.0001
+
+  // 各周期折线图数据窗口（每日一条快照）：最低1个月(30点)，数据不足该窗口时显示全部
+  const PERIOD_POINTS: Record<string, number> = {
+    d1: 30, d3: 30, w1: 30, w2: 30, m1: 30, m3: 90, m6: 180, y1: 365,
+  }
+
+  const filtered = data
+    .filter((d: any) => d[field] !== null && d[field] !== undefined)
+    .slice(-(PERIOD_POINTS[period.value] || 30)) // 数据不足时 slice 自动取全部
+  const points = filtered.map((d: any, i: number, arr: any[]) => ({
+    date: formatDateShort(d.date),
+    fullDate: d.date || '--',
+    value: d[field],
+    x: arr.length > 1 ? (i / (arr.length - 1)) * 100 : 50,
+    y: ((max - d[field]) / adjustedRange) * 100,
+  }))
+
+  return {
+    points,
+    min,
+    max,
+    range,
+    adjustedMin,
+    adjustedMax: max,
+    startLabel: filtered[0]?.date || '--',
+    endLabel: filtered[filtered.length - 1]?.date || '--',
+  }
+})
+
+// 生成折线图 SVG
+const lineChartSvg = computed(() => {
+  const pts = annualTrend.value.points
+  if (pts.length < 2) return ''
+  const w = 300, h = 160
+  const lastVal = pts[pts.length - 1]?.value
+  const color = lastVal != null && lastVal > 0 ? '#f5222d' : '#07c160'
+  const fillColor = lastVal != null && lastVal > 0 ? 'rgba(245,34,45,0.08)' : 'rgba(7,193,96,0.08)'
+
+  const polylinePts = pts.map(p => `${(p.x / 100 * w).toFixed(1)},${(p.y / 100 * h).toFixed(1)}`).join(' ')
+  const areaPts = `${(pts[0].x / 100 * w).toFixed(1)},${h} ${polylinePts} ${(pts[pts.length - 1].x / 100 * w).toFixed(1)},${h}`
+  const circles = pts.map(p =>
+    `<circle cx="${(p.x / 100 * w).toFixed(1)}" cy="${(p.y / 100 * h).toFixed(1)}" r="2.5" fill="${color}"/>`
+  ).join('')
+
+  return `<svg viewBox="0 0 ${w} ${h}" preserveAspectRatio="none" width="100%" height="${h}">
+    <line x1="0" y1="0" x2="${w}" y2="0" stroke="#f0f0f0" stroke-width="1"/>
+    <line x1="0" y1="${h / 2}" x2="${w}" y2="${h / 2}" stroke="#f0f0f0" stroke-width="1"/>
+    <line x1="0" y1="${h}" x2="${w}" y2="${h}" stroke="#f0f0f0" stroke-width="1"/>
+    <polygon points="${areaPts}" fill="${fillColor}"/>
+    <polyline points="${polylinePts}" stroke="${color}" fill="none" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>
+    ${circles}
+  </svg>`
+})
+
+function formatWeight(w: number | undefined | null): string {
+  if (w === null || w === undefined) return '--'
+  return (Number(w) * 100).toFixed(0) + '%'
+}
+
+// 净值走势折线图数据（取最近20条，倒序变正序）
+const navTrend = computed(() => {
+  const data = [...navSeries.value].slice(0, 20).reverse()
+  if (data.length < 2) return { points: [], min: 0, max: 0, range: 0 }
+  const values = data.map((d: any) => Number(d.unitNav || 0)).filter(v => v > 0)
+  if (values.length < 2) return { points: [], min: 0, max: 0, range: 0 }
+  const min = Math.min(...values)
+  const max = Math.max(...values)
+  const range = max - min || 0.0001
+  const padding = range * 0.1
+  const adjustedMin = min - padding
+  const adjustedRange = max - adjustedMin || 0.0001
+
+  const points = data
+    .filter((d: any) => Number(d.unitNav || 0) > 0)
+    .map((d: any, i: number, arr: any[]) => ({
+      date: formatDate(d.navDate || d.date),
+      value: Number(d.unitNav),
+      x: arr.length > 1 ? (i / (arr.length - 1)) * 100 : 50,
+      y: ((max - Number(d.unitNav)) / adjustedRange) * 100,
+    }))
+
+  return { points, min, max, range }
+})
+
+// 净值走势折线图 SVG
+const navLineSvg = computed(() => {
+  const pts = navTrend.value.points
+  if (pts.length < 2) return ''
+  const w = 300, h = 160
+  const lastVal = pts[pts.length - 1]?.value
+  const firstVal = pts[0]?.value
+  const color = lastVal != null && firstVal != null && lastVal >= firstVal ? '#f5222d' : '#07c160'
+  const fillColor = lastVal != null && firstVal != null && lastVal >= firstVal ? 'rgba(245,34,45,0.08)' : 'rgba(7,193,96,0.08)'
+
+  const polylinePts = pts.map(p => `${(p.x / 100 * w).toFixed(1)},${(p.y / 100 * h).toFixed(1)}`).join(' ')
+  const areaPts = `${(pts[0].x / 100 * w).toFixed(1)},${h} ${polylinePts} ${(pts[pts.length - 1].x / 100 * w).toFixed(1)},${h}`
+  const circles = pts.map(p =>
+    `<circle cx="${(p.x / 100 * w).toFixed(1)}" cy="${(p.y / 100 * h).toFixed(1)}" r="2" fill="${color}"/>`
+  ).join('')
+
+  return `<svg viewBox="0 0 ${w} ${h}" width="100%" height="${h}">
+    <line x1="0" y1="0" x2="${w}" y2="0" stroke="#f0f0f0" stroke-width="1"/>
+    <line x1="0" y1="${h / 2}" x2="${w}" y2="${h / 2}" stroke="#f0f0f0" stroke-width="1"/>
+    <line x1="0" y1="${h}" x2="${w}" y2="${h}" stroke="#f0f0f0" stroke-width="1"/>
+    <polygon points="${areaPts}" fill="${fillColor}"/>
+    <polyline points="${polylinePts}" stroke="${color}" fill="none" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>
+    ${circles}
+  </svg>`
 })
 
 // 评分周期标签
@@ -556,6 +790,11 @@ page { background: #f5f5f5; }
 }
 .toggle-arrow { font-size: 24rpx; color: #667eea; font-weight: normal; }
 
+.annual-section-title {
+  display: flex; justify-content: space-between; align-items: center;
+}
+.annual-help { font-size: 24rpx; color: #667eea; font-weight: normal; }
+
 .product-head {
   display: flex; justify-content: space-between; align-items: flex-start;
   margin-bottom: 16rpx;
@@ -567,15 +806,25 @@ page { background: #f5f5f5; }
 .info-label { font-size: 22rpx; color: #999; display: block; margin-bottom: 6rpx; }
 .info-value { font-size: 26rpx; color: #333; }
 
-/* 周期 tabs */
+/* 周期 tabs（期限+年化值合并按钮） */
 .period-tabs {
   display: flex; flex-wrap: wrap; gap: 12rpx; margin-bottom: 24rpx;
 }
 .tab {
-  background: #f5f5f5; color: #666; font-size: 24rpx;
-  padding: 10rpx 22rpx; border-radius: 24rpx;
+  background: #f5f5f5; border-radius: 16rpx;
+  padding: 8rpx 18rpx 10rpx;
+  display: flex; flex-direction: column; align-items: center;
+  min-width: 88rpx;
 }
-.tab.active { background: #667eea; color: #fff; }
+.tab-label { font-size: 22rpx; color: #666; line-height: 1.3; }
+.tab-value { font-size: 24rpx; font-weight: bold; color: #999; line-height: 1.3; }
+.tab-value.up { color: #f5222d; }
+.tab-value.down { color: #07c160; }
+.tab.active { background: #667eea; }
+.tab.active .tab-label { color: #fff; }
+.tab.active .tab-value { color: #fff; }
+.tab.active .tab-value.up { color: #ffe9e9; }
+.tab.active .tab-value.down { color: #e6fff4; }
 
 /* 年化大数 */
 .annual-big {
@@ -588,30 +837,45 @@ page { background: #f5f5f5; }
 .annual-num.down { color: #07c160; }
 .annual-num.flat { color: #999; }
 
-/* 柱状图 */
-.chart {
-  display: flex; align-items: flex-end; gap: 6rpx;
-  height: 220rpx; padding: 20rpx 0 10rpx;
+/* 折线图 */
+.line-chart { padding: 10rpx 0; }
+.line-chart-body {
+  display: flex; align-items: stretch; gap: 8rpx; height: 180rpx;
 }
-.bar-wrap {
-  flex: 1; display: flex; flex-direction: column; align-items: center;
-  justify-content: flex-end; height: 100%;
+.line-chart-yaxis {
+  display: flex; flex-direction: column; justify-content: space-between;
+  padding: 4rpx 0; width: 80rpx; flex-shrink: 0;
 }
-.bar-track {
-  flex: 1; width: 100%; display: flex; align-items: flex-end; justify-content: center;
+.y-label { font-size: 18rpx; color: #999; text-align: right; }
+.line-chart-plot { position: relative; flex: 1; height: 100%; }
+.line-chart-svg { width: 100%; height: 100%; }
+.line-chart-svg :deep(svg) { display: block; width: 100%; height: 100%; }
+.chart-hit {
+  position: absolute; width: 28rpx; height: 28rpx;
+  margin: -14rpx 0 0 -14rpx; border-radius: 50%;
+  z-index: 5;
 }
-.bar {
-  width: 60%; min-height: 6rpx; border-radius: 6rpx 6rpx 0 0;
-  background: #ccc; opacity: 0.5;
+.chart-hit:active { background: rgba(102, 126, 234, 0.25); }
+.chart-tip {
+  position: absolute; z-index: 6;
+  transform: translate(-50%, -130%);
+  background: rgba(23, 23, 23, 0.88); border-radius: 8rpx;
+  padding: 10rpx 16rpx;
+  display: flex; flex-direction: column; align-items: center;
+  pointer-events: auto;
 }
-.bar.up { background: #f5222d; }
-.bar.down { background: #07c160; }
-.bar.flat { background: #ccc; }
-.bar.active { opacity: 1; width: 80%; }
-.bar-label { font-size: 18rpx; color: #999; margin-top: 8rpx; }
-.bar-label.active { color: #667eea; font-weight: bold; }
+.tip-date { font-size: 20rpx; color: #ccc; line-height: 1.4; }
+.tip-value { font-size: 26rpx; font-weight: bold; color: #fff; line-height: 1.4; }
+.tip-value.up { color: #ff8a8a; }
+.tip-value.down { color: #7ee8b0; }
+.line-chart-xaxis {
+  display: flex; justify-content: space-between;
+  padding: 6rpx 8rpx 0 88rpx;
+}
+.x-label { font-size: 18rpx; color: #999; }
 
-.chart-note { text-align: center; font-size: 20rpx; color: #fa8c16; margin-top: 12rpx; }
+.chart-note { text-align: center; font-size: 20rpx; color: #999; margin-top: 12rpx; }
+.chart-note-orange { color: #fa8c16; }
 
 /* 风险指标 2x2 */
 .metric-grid {
@@ -626,6 +890,10 @@ page { background: #f5f5f5; }
 .metric-value.up { color: #f5222d; }
 .metric-value.down { color: #07c160; }
 .metric-value.flat { color: #999; }
+.metric-desc { font-size: 20rpx; color: #bbb; display: block; margin-top: 8rpx; }
+.metric-note {
+  font-size: 20rpx; color: #999; margin-top: 16rpx; text-align: center;
+}
 
 /* 净值表 */
 .nav-table { margin-top: 16rpx; }
@@ -643,19 +911,6 @@ page { background: #f5f5f5; }
 
 /* 净值走势图 */
 .nav-trend-chart { padding: 10rpx 0; }
-.trend-bars {
-  display: flex; align-items: flex-end; gap: 4rpx;
-  height: 180rpx; padding: 0 4rpx;
-}
-.trend-bar-wrap {
-  flex: 1; height: 100%; display: flex; align-items: flex-end; justify-content: center;
-}
-.trend-bar {
-  width: 70%; min-height: 4rpx; border-radius: 4rpx 4rpx 0 0;
-  background: linear-gradient(180deg, #667eea 0%, #764ba2 100%);
-  opacity: 0.7; transition: opacity 0.2s;
-}
-.trend-bar-wrap:last-child .trend-bar { opacity: 1; }
 .trend-info {
   display: flex; justify-content: space-between;
   padding: 16rpx 8rpx 0; font-size: 22rpx; color: #999;
@@ -684,10 +939,18 @@ page { background: #f5f5f5; }
   margin-bottom: 12rpx;
 }
 .score-header .section-title { margin-bottom: 0; }
-.score-disclaimer {
-  display: block; text-align: center; font-size: 20rpx; color: #999;
+.score-footer {
+  display: flex; justify-content: space-between; align-items: center;
   margin-top: 12rpx;
 }
+.score-disclaimer {
+  font-size: 20rpx; color: #999;
+}
+.score-help {
+  font-size: 22rpx; color: #667eea; flex-shrink: 0;
+  padding: 4rpx 0 4rpx 12rpx;
+}
+.score-help:active { opacity: 0.7; }
 
 /* 动态风险揭示 */
 .risk-disclosure-section { border-left: 6rpx solid #fa8c16; }
@@ -801,4 +1064,28 @@ page { background: #f5f5f5; }
   color: #fff;
 }
 .popup-btn-cancel:active, .popup-btn-submit:active { opacity: 0.85; }
+
+/* 评分说明弹窗 */
+.explain-body { padding: 8rpx 4rpx; }
+.explain-formula {
+  background: #f7f8fc; border-radius: 12rpx;
+  padding: 20rpx 24rpx; margin-bottom: 20rpx;
+}
+.explain-line {
+  display: block; font-size: 26rpx; color: #333; line-height: 1.8;
+  font-weight: bold;
+}
+.explain-note { font-size: 24rpx; color: #666; margin-bottom: 16rpx; }
+.explain-item {
+  display: flex; flex-direction: column;
+  padding: 14rpx 0; border-bottom: 1rpx solid #f5f5f5;
+}
+.explain-item:last-of-type { border-bottom: none; }
+.explain-label { font-size: 24rpx; color: #333; font-weight: bold; margin-bottom: 6rpx; }
+.explain-desc { font-size: 22rpx; color: #999; }
+.explain-warn {
+  font-size: 22rpx; color: #fa8c16;
+  background: #fff7e6; border-radius: 8rpx;
+  padding: 14rpx 16rpx; margin-top: 16rpx;
+}
 </style>

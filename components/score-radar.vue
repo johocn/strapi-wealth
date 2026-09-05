@@ -30,7 +30,6 @@ const props = defineProps<{
   returnScore: number
   volatilityScore: number
   drawdownScore: number
-  peerRankScore: number
   compositeScore: number
 }>()
 
@@ -38,7 +37,6 @@ const dimensions = computed(() => [
   { key: 'returnScore', label: '收益能力', value: props.returnScore || 0, color: '#409eff' },
   { key: 'volatilityScore', label: '波动控制', value: props.volatilityScore || 0, color: '#67c23a' },
   { key: 'drawdownScore', label: '回撤控制', value: props.drawdownScore || 0, color: '#e6a23c' },
-  { key: 'peerRankScore', label: '同类排名', value: props.peerRankScore || 0, color: '#f56c6c' },
   { key: 'compositeScore', label: '综合评分', value: props.compositeScore || 0, color: '#9c27b0' },
 ])
 
@@ -47,7 +45,7 @@ function drawRadar() {
   const size = 200
   const center = size / 2
   const radius = 70
-  const sides = 5
+  const sides = 4
 
   // 背景多边形
   for (let level = 1; level <= 4; level++) {
@@ -78,7 +76,7 @@ function drawRadar() {
   }
 
   // 数据多边形
-  const values = [props.returnScore, props.volatilityScore, props.drawdownScore, props.peerRankScore, props.compositeScore]
+  const values = [props.returnScore, props.volatilityScore, props.drawdownScore, props.compositeScore]
   ctx.beginPath()
   for (let i = 0; i < sides; i++) {
     const angle = (Math.PI * 2 * i) / sides - Math.PI / 2
@@ -108,7 +106,7 @@ function drawRadar() {
   }
 
   // 标签
-  const labels = ['收益', '波动', '回撤', '排名', '综合']
+  const labels = ['收益', '波动', '回撤', '综合']
   for (let i = 0; i < sides; i++) {
     const angle = (Math.PI * 2 * i) / sides - Math.PI / 2
     const labelR = radius + 18
@@ -130,7 +128,7 @@ onMounted(() => {
   })
 })
 
-watch(() => [props.returnScore, props.volatilityScore, props.drawdownScore, props.peerRankScore, props.compositeScore], () => {
+watch(() => [props.returnScore, props.volatilityScore, props.drawdownScore, props.compositeScore], () => {
   nextTick(() => drawRadar())
 }, { deep: true })
 

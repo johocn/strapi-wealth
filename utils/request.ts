@@ -98,8 +98,8 @@ function handleUnauthorized() {
           return
         }
       } catch {}
-      // 兜底：刷新页面让 App.vue 重新走 SSO 流程
-      window.location.href = window.location.origin + '/'
+      // 兜底：刷新当前子路径页面让 App.vue 重新走 SSO 流程
+      window.location.href = window.location.origin + window.location.pathname
     }
     // #endif
     // #ifndef H5

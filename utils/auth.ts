@@ -60,7 +60,7 @@ function redirectToSso(): void {
 
   if (!guardSsoRedirect()) return
 
-  const cEndCallback = window.location.origin + '/#/pages/auth-callback/auth-callback'
+  const cEndCallback = window.location.origin + window.location.pathname + '#/pages/auth-callback/auth-callback'
   const params = new URLSearchParams({
     app_code: config.ssoAppCode || 'wealth',
     return_url: cEndCallback,

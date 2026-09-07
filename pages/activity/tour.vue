@@ -85,27 +85,29 @@
 
         <view v-else-if="curNodes[curIdx]?.type === 'input'" class="story-feed">
           <text class="story-text">{{ storyFeed.text || '这一愿，你是替谁许的？' }}</text>
-          <input class="story-input" v-model="wishSel" :placeholder="'写下你在乎的人，或想护的人'" />
-          <view class="story-next" @click="submitWish"><text>落下絮条 ›</text></view>
+          <input class="story-input" v-model="wishSel" :placeholder="curNodes[curIdx].placeholder || '写下你在乎的人，或想护的人'" />
+          <view class="story-next" @click="submitWish"><text>{{ submittingWish ? '钟声记着…' : '落下絮条 ›' }}</text></view>
         </view>
 
         <view v-else-if="curNodes[curIdx]?.type === 'tap'" class="story-ring">
           <text class="ring-hint">敲钟三下 · 已敲 {{ tapCount }}/{{ curNodes[curIdx].target }}</text>
           <view class="ring-bell" @click="tapRing"><text>🔔 敲钟</text></view>
           <text class="ring-feed">{{ storyFeed.text }}</text>
+          <text v-if="ringDone && !bonusShown" class="ring-extra">钟声落定——还想，再敲一声吗？</text>
+          <view v-if="ringDone" class="story-next" @click="advance"><text>{{ bonusShown ? '继续 ›' : '够了，继续 ›' }}</text></view>
         </view>
 
         <view v-else-if="curNodes[curIdx]?.type === 'choice'" class="story-feed">
           <text class="story-text">{{ storyFeed.text || '你最信什么？' }}</text>
-          <view class="story-choice" v-for="o in curNodes[curIdx].options" :key="o.id" @click="pickChoice(o.id, o.label)">
+          <view v-if="!choiceLocked" class="story-choice" v-for="o in curNodes[curIdx].options" :key="o.id" @click="pickChoice(o.id, o.label)">
             <text>{{ o.label }}</text>
           </view>
         </view>
 
         <view v-else-if="curNodes[curIdx]?.type === 'settle'" class="story-feed">
-          <text class="story-relic">{{ doneRelic || '线索已入行囊' }}</text>
-          <text class="story-text">回声指向关帝庙——那里有位"话多的大爷"。</text>
-          <view class="story-next"><text>完成本站 ›</text></view>
+          <text class="story-relic">{{ doneRelic || curNodes[curIdx].relic || '线索已入行囊' }}</text>
+          <text class="story-text">{{ curNodes[curIdx].hint || '回声指向关帝庙——那里有位"话多的大爷"。' }}</text>
+          <view class="story-next" @click="advance"><text>完成本站 ›</text></view>
         </view>
       </view>
     </view>
@@ -145,6 +147,10 @@ const storyFeed = ref<{ speaker?: string; text: string; tone?: string }>({ text:
 const wishSel = ref('')
 const tapCount = ref(0)
 const doneRelic = ref('')
+const choiceLocked = ref(false)
+const ringDone = ref(false)
+const bonusShown = ref(false)
+const submittingWish = ref(false)
 
 function storyKey() {
   const uid = (getToken() || '').slice(-6) || 'anon'
@@ -227,7 +233,30 @@ function stationScript(order: number): TourNode[] {
 
 function checkin(order: number) {
   const nodes = stationScript(order)
-  if (nodes.length && !hasStoryDone(order)) {
+  const storyState = loadStoryAll()[String(order)]
+  if (nodes.length && storyState?.done) {
+    // 复访：按已选线播放守钟人对白，并提供二周目「再敲一次」入口
+    const line = storyState.line || ''
+    const revisit = (stationScripts[String(order)] as any)?.revisit?.[line]
+    uni.showModal({
+      title: '平安钟楼 · 再访',
+      content: revisit ? revisit.text : '守钟人：「钟还在等你。」',
+      confirmText: '再敲一次',
+      cancelText: '离开',
+      success: (res: any) => {
+        if (res.confirm) {
+          const all = loadStoryAll()
+          all[String(order)] = { ...storyState, node: 0, done: false }
+          saveStoryAll(all)
+          openStage(String(order), nodes)
+        } else {
+          doCheckin(order)
+        }
+      },
+    })
+    return
+  }
+  if (nodes.length && !storyState?.done) {
     openStage(String(order), nodes)
     return
   }
@@ -251,6 +280,10 @@ function openStage(order: string, nodes: TourNode[]) {
   tapCount.value = 0
   wishSel.value = ''
   doneRelic.value = ''
+  choiceLocked.value = false
+  ringDone.value = false
+  bonusShown.value = false
+  submittingWish.value = false
   stageOpen.value = true
   applyNode()
 }
@@ -266,33 +299,65 @@ function advance() {
   if (curIdx.value >= curNodes.value.length) { finishStory(); return }
   applyNode()
 }
-function submitWish() {
+async function submitWish() {
+  if (submittingWish.value) return
   if (!wishSel.value.trim()) return uni.showToast({ title: '写点什么吧', icon: 'none' })
+  submittingWish.value = true
+  // 隐藏彩蛋：心愿词命中关键词 → 先播守钟人/钟之回声的隐藏对白
+  const n = curNodes.value[curIdx.value] as any
+  const hiddenReply = n?.hidden?.find((h: any) => h.keys.some((k: string) => wishSel.value.includes(k)))
+  if (hiddenReply) {
+    storyFeed.value = { speaker: hiddenReply.speaker, text: hiddenReply.text, tone: 'hidden' }
+    await new Promise((resolve) => setTimeout(resolve, 1800))
+  }
   const all = loadStoryAll(); all[curOrder.value] = { ...(all[curOrder.value] || {}), wish: wishSel.value, node: curIdx.value }
   saveStoryAll(all)
+  submittingWish.value = false
   advance()
 }
 function tapRing() {
   uni.vibrateShort?.()
-  const rings = (curNodes.value[curIdx.value] as any)?.rings || []
+  const n = curNodes.value[curIdx.value] as any
+  const rings = n?.rings || []
+  const bonus = n?.bonus
+  if (bonusShown.value) return // 第四声已敲响，等待继续
   tapCount.value += 1
-  storyFeed.value = { text: rings[tapCount.value - 1], tone: 'ring' }
-  if (tapCount.value >= ((curNodes.value[curIdx.value] as any)?.target ?? 999)) {
-    setTimeout(() => advance(), 600)
+  if (tapCount.value <= (n?.target ?? 3)) {
+    storyFeed.value = { text: rings[tapCount.value - 1] || '', tone: 'ring' }
+    if (tapCount.value === (n?.target ?? 3)) ringDone.value = true
+    return
+  }
+  // 超敲彩蛋：第 4 下触发「第四声」回响，不自动推进
+  if (bonus && tapCount.value === bonus.when) {
+    bonusShown.value = true
+    storyFeed.value = { speaker: bonus.speaker, text: bonus.text, tone: 'ring' }
   }
 }
 function pickChoice(id: string, label: string) {
+  if (choiceLocked.value) return
   const n = curNodes.value[curIdx.value] as any
   const opt = n.options.find((o: any) => o.id === id)
+  choiceLocked.value = true
   storyFeed.value = { text: opt?.note || label, tone: 'choice' }
-  const all = loadStoryAll(); all[curOrder.value] = { ...(all[curOrder.value] || {}), choice: id, node: curIdx.value }
+  // 双结局：记录所选线，播放该线 epilogue 收尾后进入 settle
+  const all = loadStoryAll(); all[curOrder.value] = { ...(all[curOrder.value] || {}), choice: id, line: id, node: curIdx.value }
   saveStoryAll(all)
-  setTimeout(() => advance(), 800)
+  setTimeout(() => {
+    storyFeed.value = { text: opt?.epilogue || opt?.note || '', tone: 'epilogue' }
+    setTimeout(() => advance(), 1700)
+  }, 900)
 }
 function finishStory() {
   const n = curNodes.value[curIdx.value - 1] as any
   doneRelic.value = n?.relic || ''
-  const all = loadStoryAll(); all[curOrder.value] = { ...(all[curOrder.value] || {}), done: true, relic: doneRelic.value }
+  const all = loadStoryAll()
+  all[curOrder.value] = {
+    ...(all[curOrder.value] || {}),
+    done: true,
+    relic: doneRelic.value,
+    tapCount: tapCount.value,
+    completedAt: new Date().toISOString(),
+  }
   saveStoryAll(all)
   setTimeout(() => { stageOpen.value = false; doCheckin(Number(curOrder.value)) }, 900)
 }
@@ -381,5 +446,6 @@ async function claimFinale() {
 .ring-hint { color: #c9ba9a; font-size: 28rpx; }
 .ring-bell { width: 220rpx; height: 220rpx; border-radius: 50%; background: radial-gradient(circle at 30% 30%, #d9a44c, #6b4f2a); display: flex; align-items: center; justify-content: center; font-size: 44rpx; box-shadow: 0 10rpx 30rpx rgba(217,164,76,.35); }
 .ring-feed { text-align: center; font-size: 28rpx; color: #f3ead8; min-height: 40rpx; }
+.ring-extra { text-align: center; font-size: 26rpx; color: #c9ba9a; }
 .story-relic { text-align: center; color: #d9a44c; font-weight: 700; font-size: 32rpx; }
 </style>

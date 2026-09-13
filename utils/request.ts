@@ -87,9 +87,9 @@ function handleUnauthorized() {
         const configStr = uni.getStorageSync('authConfig')
         const config = configStr ? (typeof configStr === 'string' ? JSON.parse(configStr) : configStr) : null
         if (config?.ssoLoginUrl) {
-          const cEndCallback = window.location.origin + '/#/pages/auth-callback/auth-callback'
+          const cEndCallback = window.location.origin + window.location.pathname + '#/pages/auth-callback/auth-callback'
           const params = new URLSearchParams({
-            app_code: config.ssoAppCode || 'wealth',
+            app_code: 'wealth',
             return_url: cEndCallback,
             c_end_url: cEndCallback,
           })

@@ -194,6 +194,11 @@
             </view>
           </view>
         </view>
+        <view v-if="product.navSourceUrl" class="nav-source">
+          <text class="nav-source-label">净值来源：</text>
+          <text class="nav-source-link" @click="openNavSource">{{ navSourceName }}</text>
+          <text class="nav-source-tip">点击查看，可自行查阅校验</text>
+        </view>
       </view>
 
       <!-- 7. 合规披露 -->
@@ -394,6 +399,29 @@ const navs = computed<any[]>(() => {
   const list = navSeries.value || []
   return Array.isArray(list) ? list.slice(0, 10) : []
 })
+
+// 净值来源名称：按 URL 域名识别官方渠道
+const navSourceName = computed(() => {
+  const url = product.value?.navSourceUrl || ''
+  if (!url) return ''
+  if (url.includes('qdccb.com')) return '青岛银行官网'
+  if (url.includes('chinawealth.com')) return '中国理财网'
+  return '外部网址'
+})
+
+function openNavSource() {
+  const url = product.value?.navSourceUrl
+  if (!url) return
+  // #ifdef H5
+  window.open(url, '_blank')
+  // #endif
+  // #ifndef H5
+  uni.setClipboardData({
+    data: url,
+    success: () => uni.showToast({ title: '链接已复制', icon: 'none' }),
+  })
+  // #endif
+}
 
 // 周期 key → 后端 API 字段名映射
 const PERIOD_FIELD_MAP: Record<string, string> = {
@@ -906,6 +934,17 @@ page { background: #f5f5f5; }
 .nav-date { flex: 1; color: #666; }
 .nav-unit { flex: 1; text-align: center; color: #333; }
 .nav-acc { flex: 1; text-align: right; color: #333; }
+
+/* 净值来源 */
+.nav-source {
+  display: flex; align-items: center; flex-wrap: wrap; gap: 8rpx;
+  margin-top: 20rpx; padding-top: 20rpx;
+  border-top: 1rpx solid #f0f0f0;
+  font-size: 24rpx;
+}
+.nav-source-label { color: #999; }
+.nav-source-link { color: #667eea; font-weight: bold; text-decoration: underline; }
+.nav-source-tip { color: #bbb; font-size: 22rpx; }
 
 .footer-disclaimer { text-align: center; padding: 30rpx 0; color: #999; font-size: 22rpx; }
 

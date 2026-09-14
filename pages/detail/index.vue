@@ -7,6 +7,7 @@
       <view class="card">
         <view class="product-head">
           <text class="product-name">{{ product.productName }}</text>
+          <view v-if="isMoneyFund" class="money-fund-badge">现金管理类</view>
           <RiskTag :level="product.riskLevel" />
         </view>
         <view class="info-grid">
@@ -136,6 +137,7 @@
       <!-- 4. 净值走势图（折线图） -->
       <view class="card" v-if="navTrend.points.length >= 2">
         <view class="section-title">净值走势</view>
+        <view v-if="isMoneyFund" class="nav-flat-tip">本产品为现金管理类，净值恒为 1，走势为水平线属正常现象，收益体现于万份收益/七日年化。</view>
         <view class="nav-trend-chart">
           <view class="line-chart-body">
             <view class="line-chart-yaxis">
@@ -179,6 +181,7 @@
           <text>净值表（最近10条）</text>
           <text class="toggle-arrow">{{ navOpen ? '收起 ▴' : '展开 ▾' }}</text>
         </view>
+        <view v-if="isMoneyFund" class="nav-flat-tip">本产品为现金管理类，净值恒为 1，收益体现于万份收益/七日年化。</view>
         <view v-if="navOpen" class="nav-table">
           <view v-if="!navs.length" class="empty-inline">暂无净值数据</view>
           <view v-else>
@@ -298,6 +301,7 @@
           </view>
           <view class="explain-note">示例：1个月年化 = (最新净值 / 1个月前净值) ^ (365 / 30) - 1</view>
           <view class="explain-warn">货币基金按万份收益单利折算年化，与净值复利口径不同。</view>
+          <view v-if="isMoneyFund" class="explain-warn">本产品为现金管理类，净值恒为 1，收益体现于万份收益/七日年化。</view>
         </view>
         <view class="popup-actions">
           <view class="popup-btn-submit" @click="showAnnualExplain = false">我知道了</view>
@@ -356,6 +360,7 @@ import {
 import { getLoginState } from '../../utils/storage'
 
 const product = ref<any>(null)
+const isMoneyFund = computed(() => product.value?.productType === 'money-fund')
 const snapshot = ref<any>(null)
 const riskMetric = ref<any>(null)
 const navSeries = ref<any[]>([])
@@ -945,6 +950,23 @@ page { background: #f5f5f5; }
 .nav-source-label { color: #999; }
 .nav-source-link { color: #667eea; font-weight: bold; text-decoration: underline; }
 .nav-source-tip { color: #bbb; font-size: 22rpx; }
+
+/* 货币型提示 */
+.money-fund-badge {
+  align-self: center;
+  margin-left: 12rpx;
+  padding: 4rpx 14rpx;
+  font-size: 22rpx;
+  color: #ffffff;
+  background: linear-gradient(90deg, #7c4dff, #9d5cff);
+  border-radius: 20rpx;
+}
+.nav-flat-tip {
+  margin-top: 12rpx;
+  font-size: 24rpx;
+  color: #8a7ab5;
+  line-height: 1.5;
+}
 
 .footer-disclaimer { text-align: center; padding: 30rpx 0; color: #999; font-size: 22rpx; }
 

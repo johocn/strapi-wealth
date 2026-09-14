@@ -64,13 +64,14 @@
             @click="period = p.key"
           >
             <text class="tab-label">{{ p.label }}</text>
-            <text class="tab-value" :class="getProfitClass(periodValue(p.key))">{{ formatPercent(periodValue(p.key)) }}</text>
+            <text class="tab-value" :class="getProfitClass(periodValue(p.key))">{{ periodTabText(p.key) }}</text>
           </view>
         </view>
 
         <view class="annual-big">
           <text class="annual-label">{{ getPeriodLabel(period) }}年化收益</text>
           <text class="annual-num" :class="getProfitClass(currentAnnual)">{{ formatPercent(currentAnnual) }}</text>
+          <text v-if="isLongPeriod(period) && currentAnnual === null" class="annual-accum-tip">数据积累中，达到 {{ LONG_PERIOD_DAYS[period] }} 天历史后自动展示</text>
         </view>
 
         <!-- 折线图：有≥2个数据点即展示，X轴标注起止完整日期 -->
@@ -467,6 +468,16 @@ function periodValue(key: string): number | null {
 }
 
 const currentAnnual = computed(() => periodValue(period.value))
+
+const LONG_PERIOD_DAYS: Record<string, number> = { m1: 30, m3: 90, m6: 180, y1: 365 }
+function isLongPeriod(key: string): boolean {
+  return key in LONG_PERIOD_DAYS
+}
+function periodTabText(key: string): string {
+  const v = periodValue(key)
+  if (v === null && isLongPeriod(key)) return '积累中'
+  return formatPercent(v)
+}
 
 // 点位点击详情
 const activePoint = ref<{ date: string; value: number; x: number; y: number } | null>(null)
@@ -966,6 +977,11 @@ page { background: #f5f5f5; }
   font-size: 24rpx;
   color: #8a7ab5;
   line-height: 1.5;
+}
+.annual-accum-tip {
+  margin-top: 8rpx;
+  font-size: 22rpx;
+  color: #999;
 }
 
 .footer-disclaimer { text-align: center; padding: 30rpx 0; color: #999; font-size: 22rpx; }

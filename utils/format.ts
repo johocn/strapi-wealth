@@ -60,7 +60,8 @@ const PRODUCT_TYPE_MAP: Record<string, string> = {
   'stock-fund': '股票基金',
   'bond-fund': '债券基金',
   'mixed-fund': '混合基金',
-  'money-fund': '货币基金'
+  'money-fund': '货币基金',
+  'money-wealth': '货币理财'
 }
 
 export function getTypeLabel(type: string | undefined): string {

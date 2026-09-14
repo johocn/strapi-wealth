@@ -7,7 +7,7 @@
       <view class="card">
         <view class="product-head">
           <text class="product-name">{{ product.productName }}</text>
-          <view v-if="isMoneyFund" class="money-fund-badge">现金管理类</view>
+          <view v-if="isCashManagement" class="money-fund-badge">现金管理类</view>
           <RiskTag :level="product.riskLevel" />
         </view>
         <view class="info-grid">
@@ -135,10 +135,33 @@
         <view class="metric-note">波动率、最大回撤基于近{{ getPeriodLabel(riskMetricPeriod) }}净值数据计算，同类样本过少不提供排名</view>
       </view>
 
-      <!-- 4. 净值走势图（折线图） -->
-      <view class="card" v-if="navTrend.points.length >= 2">
+      <!-- 4a. 7日年化走势（货币理财） -->
+      <view class="card" v-if="isCashManagement && incomeTrend.points.length >= 2">
+        <view class="section-title">7日年化走势</view>
+        <view class="nav-flat-tip">数据来源：产品官方披露的七日年化，可点击下方"净值来源"校验。</view>
+        <view class="nav-trend-chart">
+          <view class="line-chart-body">
+            <view class="line-chart-yaxis">
+              <text class="y-label">{{ formatPercent(incomeTrend.max, 3) }}</text>
+              <text class="y-label">{{ formatPercent(incomeTrend.min, 3) }}</text>
+            </view>
+            <view class="line-chart-svg" v-html="incomeLineSvg"></view>
+          </view>
+          <view class="line-chart-xaxis">
+            <text class="x-label">{{ incomeTrend.points[0].date }}</text>
+            <text class="x-label">{{ incomeTrend.points[Math.floor(incomeTrend.points.length / 2)].date }}</text>
+            <text class="x-label">{{ incomeTrend.points[incomeTrend.points.length - 1].date }}</text>
+          </view>
+          <view class="trend-info">
+            <text class="trend-min">最低: {{ formatPercent(incomeTrend.min, 3) }}</text>
+            <text class="trend-max">最高: {{ formatPercent(incomeTrend.max, 3) }}</text>
+          </view>
+        </view>
+      </view>
+
+      <!-- 4b. 净值走势图（非货币理财） -->
+      <view class="card" v-if="!isCashManagement && navTrend.points.length >= 2">
         <view class="section-title">净值走势</view>
-        <view v-if="isMoneyFund" class="nav-flat-tip">本产品为现金管理类，净值恒为 1，走势为水平线属正常现象，收益体现于万份收益/七日年化。</view>
         <view class="nav-trend-chart">
           <view class="line-chart-body">
             <view class="line-chart-yaxis">
@@ -176,25 +199,25 @@
         </view>
       </view>
 
-      <!-- 6. 净值表 -->
+      <!-- 6. 净值表 / 收益明细 -->
       <view class="card">
         <view class="section-title toggle" @click="navOpen = !navOpen">
-          <text>净值表（最近10条）</text>
+          <text>{{ isCashManagement ? '收益明细（最近10条）' : '净值表（最近10条）' }}</text>
           <text class="toggle-arrow">{{ navOpen ? '收起 ▴' : '展开 ▾' }}</text>
         </view>
-        <view v-if="isMoneyFund" class="nav-flat-tip">本产品为现金管理类，净值恒为 1，收益体现于万份收益/七日年化。</view>
+        <view v-if="isCashManagement" class="nav-flat-tip">本产品为现金管理类，净值恒为 1，收益体现于万份收益/七日年化。</view>
         <view v-if="navOpen" class="nav-table">
-          <view v-if="!navs.length" class="empty-inline">暂无净值数据</view>
+          <view v-if="!tableRows.length" class="empty-inline">{{ isCashManagement ? '暂无收益数据' : '暂无净值数据' }}</view>
           <view v-else>
             <view class="nav-row nav-head">
               <text class="nav-date">日期</text>
-              <text class="nav-unit">单位净值</text>
-              <text class="nav-acc">累计净值</text>
+              <text class="nav-unit">{{ isCashManagement ? '万份收益' : '单位净值' }}</text>
+              <text class="nav-acc">{{ isCashManagement ? '七日年化' : '累计净值' }}</text>
             </view>
-            <view v-for="(n, i) in navs" :key="i" class="nav-row">
-              <text class="nav-date">{{ n.navDate || n.date || '--' }}</text>
-              <text class="nav-unit">{{ n.unitNav ?? '--' }}</text>
-              <text class="nav-acc">{{ n.accNav ?? n.accumulatedNav ?? n.accumNav ?? '--' }}</text>
+            <view v-for="(n, i) in tableRows" :key="i" class="nav-row">
+              <text class="nav-date">{{ n.date || n.navDate || '--' }}</text>
+              <text class="nav-unit">{{ n.unit ?? n.unitNav ?? '--' }}</text>
+              <text class="nav-acc">{{ n.acc ?? n.accNav ?? n.accumulatedNav ?? n.accumNav ?? '--' }}</text>
             </view>
           </view>
         </view>
@@ -302,7 +325,7 @@
           </view>
           <view class="explain-note">示例：1个月年化 = (最新净值 / 1个月前净值) ^ (365 / 30) - 1</view>
           <view class="explain-warn">货币基金按万份收益单利折算年化，与净值复利口径不同。</view>
-          <view v-if="isMoneyFund" class="explain-warn">本产品为现金管理类，净值恒为 1，收益体现于万份收益/七日年化。</view>
+          <view v-if="isCashManagement" class="explain-warn">本产品为现金管理类，净值恒为 1，收益体现于万份收益/七日年化。</view>
         </view>
         <view class="popup-actions">
           <view class="popup-btn-submit" @click="showAnnualExplain = false">我知道了</view>
@@ -351,7 +374,7 @@ import ScoreRadar from '@/components/score-radar.vue'
 import StarRating from '@/components/star-rating.vue'
 import {
   getProductDetail, getProductAnnualSnapshot, getProductRiskMetric,
-  getProductNavSeries, getProductYearlyReturn,
+  getProductNavSeries, getProductYearlyReturn, getProductMoneyIncomes,
   getProductScore, getRiskDisclosure, createConsultation, createPortfolioPlan
 } from '@/services/api'
 import {
@@ -361,10 +384,14 @@ import {
 import { getLoginState } from '../../utils/storage'
 
 const product = ref<any>(null)
-const isMoneyFund = computed(() => product.value?.productType === 'money-fund')
+const isCashManagement = computed(() => {
+  const t = product.value?.productType
+  return t === 'money-wealth' || t === 'money-fund'
+})
 const snapshot = ref<any>(null)
 const riskMetric = ref<any>(null)
 const navSeries = ref<any[]>([])
+const moneyIncomes = ref<any[]>([])
 const yearlyReturns = ref<any[]>([])
 const loading = ref(true)
 const productId = ref<string | number>('')
@@ -404,6 +431,16 @@ const portfolioForm = ref({
 const navs = computed<any[]>(() => {
   const list = navSeries.value || []
   return Array.isArray(list) ? list.slice(0, 10) : []
+})
+
+// 净值表行数据：货币理财显示万份收益/七日年化，其余沿用净值字段
+const tableRows = computed<any[]>(() => {
+  if (!isCashManagement.value) return navs.value
+  return (moneyIncomes.value || []).slice(0, 10).map((r: any) => ({
+    date: formatDate(r.date),
+    unit: r.tenThousandIncome != null ? Number(r.tenThousandIncome).toFixed(4) : '--',
+    acc: r.sevenDayAnnual != null ? formatPercent(r.sevenDayAnnual) : '--',
+  }))
 })
 
 // 净值来源名称：按 URL 域名识别官方渠道
@@ -638,6 +675,57 @@ const navLineSvg = computed(() => {
   </svg>`
 })
 
+// 7日年化走势折线图数据（取最近30条，倒序变正序）
+const incomeTrend = computed(() => {
+  const data = [...moneyIncomes.value].slice(0, 30).reverse()
+  if (data.length < 2) return { points: [], min: 0, max: 0, range: 0 }
+  const values = data.map((d: any) => Number(d.sevenDayAnnual || 0)).filter(v => v > 0)
+  if (values.length < 2) return { points: [], min: 0, max: 0, range: 0 }
+  const min = Math.min(...values)
+  const max = Math.max(...values)
+  const range = max - min || 0.0001
+  const padding = range * 0.1
+  const adjustedMin = min - padding
+  const adjustedRange = max - adjustedMin || 0.0001
+
+  const points = data
+    .filter((d: any) => Number(d.sevenDayAnnual || 0) > 0)
+    .map((d: any, i: number, arr: any[]) => ({
+      date: formatDate(d.date),
+      value: Number(d.sevenDayAnnual),
+      x: arr.length > 1 ? (i / (arr.length - 1)) * 100 : 50,
+      y: ((max - Number(d.sevenDayAnnual)) / adjustedRange) * 100,
+    }))
+
+  return { points, min, max, range }
+})
+
+// 7日年化走势折线图 SVG
+const incomeLineSvg = computed(() => {
+  const pts = incomeTrend.value.points
+  if (pts.length < 2) return ''
+  const w = 300, h = 160
+  const lastVal = pts[pts.length - 1]?.value
+  const firstVal = pts[0]?.value
+  const color = lastVal != null && firstVal != null && lastVal >= firstVal ? '#f5222d' : '#07c160'
+  const fillColor = lastVal != null && firstVal != null && lastVal >= firstVal ? 'rgba(245,34,45,0.08)' : 'rgba(7,193,96,0.08)'
+
+  const polylinePts = pts.map(p => `${(p.x / 100 * w).toFixed(1)},${(p.y / 100 * h).toFixed(1)}`).join(' ')
+  const areaPts = `${(pts[0].x / 100 * w).toFixed(1)},${h} ${polylinePts} ${(pts[pts.length - 1].x / 100 * w).toFixed(1)},${h}`
+  const circles = pts.map(p =>
+    `<circle cx="${(p.x / 100 * w).toFixed(1)}" cy="${(p.y / 100 * h).toFixed(1)}" r="2" fill="${color}"/>`
+  ).join('')
+
+  return `<svg viewBox="0 0 ${w} ${h}" width="100%" height="${h}">
+    <line x1="0" y1="0" x2="${w}" y2="0" stroke="#f0f0f0" stroke-width="1"/>
+    <line x1="0" y1="${h / 2}" x2="${w}" y2="${h / 2}" stroke="#f0f0f0" stroke-width="1"/>
+    <line x1="0" y1="${h}" x2="${w}" y2="${h}" stroke="#f0f0f0" stroke-width="1"/>
+    <polygon points="${areaPts}" fill="${fillColor}"/>
+    <polyline points="${polylinePts}" stroke="${color}" fill="none" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>
+    ${circles}
+  </svg>`
+})
+
 // 评分周期标签
 const periodLabel = computed(() => getPeriodLabel(selectedPeriod.value))
 
@@ -781,17 +869,19 @@ async function loadAll(id: string) {
   loading.value = true
   productId.value = id
   try {
-    const [p, snap, rm, navList, yrList] = await Promise.all([
+    const [p, snap, rm, navList, yrList, incomeList] = await Promise.all([
       getProductDetail(id),
       getProductAnnualSnapshot(id).catch(() => null),
       getProductRiskMetric(id).catch(() => null),
       getProductNavSeries(id, { pageSize: 30 }).catch(() => []),
-      getProductYearlyReturn(id).catch(() => [])
+      getProductYearlyReturn(id).catch(() => []),
+      getProductMoneyIncomes(id, { pageSize: 30 }).catch(() => [])
     ])
     product.value = p
     snapshot.value = snap
     riskMetric.value = rm
     navSeries.value = navList?.list || navList || []
+    moneyIncomes.value = incomeList?.list || incomeList || []
     yearlyReturns.value = yrList?.list || yrList || []
     // 并行加载评分和风险揭示
     loadScore()

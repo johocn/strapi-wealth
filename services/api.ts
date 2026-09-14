@@ -21,6 +21,11 @@ export function getProductNavSeries(productId: string | number, params = {}) {
   return get(`${V1}/products/${productId}/nav`, params).then(extractList)
 }
 
+// 货币理财收益序列（万份收益 + 七日年化，倒序）
+export function getProductMoneyIncomes(productId: string | number, params = {}) {
+  return get(`${V1}/products/${productId}/money-incomes`, params).then(extractList)
+}
+
 // 产品年化快照（8 周期）
 export function getProductAnnualSnapshot(productId: string | number, params = {}) {
   return get(`${V1}/products/${productId}/annual-snapshot`, params).then(extractItem)

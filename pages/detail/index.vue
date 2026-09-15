@@ -120,7 +120,25 @@
       <!-- 3. 风险指标 -->
       <view class="card">
         <view class="section-title">风险指标</view>
-        <view class="metric-grid">
+        <!-- 货币理财：收益型指标（净值恒1，净值波动/回撤不适用） -->
+        <view v-if="isCashManagement" class="metric-grid">
+          <view class="metric-cell third">
+            <text class="metric-label">收益波动率</text>
+            <text class="metric-value">{{ formatPercent(riskMetricData?.volatility) }}</text>
+            <text class="metric-desc">万份收益年化波动幅度，越低越稳健</text>
+          </view>
+          <view class="metric-cell third">
+            <text class="metric-label">收益稳定度</text>
+            <text class="metric-value">{{ formatPercent(riskMetricData?.incomeStability) }}</text>
+            <text class="metric-desc">万份收益离散程度，越低越稳定</text>
+          </view>
+          <view class="metric-cell third">
+            <text class="metric-label">同类排名</text>
+            <text class="metric-value">{{ formatRankPercentile(riskMetricData?.rankPercentile) }}</text>
+            <text class="metric-desc">同类产品中收益所处位置</text>
+          </view>
+        </view>
+        <view v-else class="metric-grid">
           <view class="metric-cell">
             <text class="metric-label">波动率</text>
             <text class="metric-value">{{ formatPercent(riskMetricData?.volatility) }}</text>
@@ -132,7 +150,8 @@
             <text class="metric-desc">区间内最大下跌幅度</text>
           </view>
         </view>
-        <view class="metric-note">波动率、最大回撤基于近{{ getPeriodLabel(riskMetricPeriod) }}净值数据计算，同类样本过少不提供排名</view>
+        <view v-if="isCashManagement" class="metric-note">收益波动率、收益稳定度基于近{{ getPeriodLabel(riskMetricPeriod) }}万份收益数据计算</view>
+        <view v-else class="metric-note">波动率、最大回撤基于近{{ getPeriodLabel(riskMetricPeriod) }}净值数据计算，同类样本过少不提供排名</view>
       </view>
 
       <!-- 4a. 7日年化走势（货币理财） -->
@@ -340,8 +359,8 @@
         <view class="explain-body">
           <view class="explain-formula">
             <text class="explain-line">综合评分 = 收益得分 × {{ formatWeight(scoreData?.weights?.returns) }}</text>
-            <text class="explain-line">　　+ 波动率得分 × {{ formatWeight(scoreData?.weights?.volatility) }}</text>
-            <text class="explain-line">　　+ 回撤得分 × {{ formatWeight(scoreData?.weights?.drawdown) }}</text>
+            <text class="explain-line">　　+ {{ isCashManagement ? '收益波动率得分' : '波动率得分' }} × {{ formatWeight(scoreData?.weights?.volatility) }}</text>
+            <text v-if="!isCashManagement" class="explain-line">　　+ 回撤得分 × {{ formatWeight(scoreData?.weights?.drawdown) }}</text>
           </view>
           <view class="explain-note">各维度按绝对标尺归一化到 0-100 分，不依赖同类产品数量：</view>
           <view class="explain-item">
@@ -349,10 +368,10 @@
             <text class="explain-desc">年化收益达到 {{ formatPercent(scoreData?.scales?.returnScale, 0) }} 即为满分</text>
           </view>
           <view class="explain-item">
-            <text class="explain-label">波动率得分</text>
+            <text class="explain-label">{{ isCashManagement ? '收益波动率得分' : '波动率得分' }}</text>
             <text class="explain-desc">波动率越低越好，达到 {{ formatPercent(scoreData?.scales?.volatilityScale, 0) }} 即 0 分</text>
           </view>
-          <view class="explain-item">
+          <view v-if="!isCashManagement" class="explain-item">
             <text class="explain-label">回撤得分</text>
             <text class="explain-desc">回撤越小越好，达到 -{{ formatPercent(scoreData?.scales?.drawdownScale, 0) }} 即 0 分</text>
           </view>
@@ -542,6 +561,13 @@ const riskMetricData = computed(() => {
   if (!rm) return null
   return rm[riskMetricPeriod.value] || null
 })
+
+// 同类排名显示：rankPercentile = (rank/total)×100，越小越靠前（如 前12.5%）
+function formatRankPercentile(v: number | null | undefined): string {
+  if (v === null || v === undefined || isNaN(Number(v))) return '--'
+  const n = Number(v)
+  return `前${n.toFixed(n % 1 === 0 ? 0 : 1)}%`
+}
 
 // 折线图数据（选中周期的年化趋势）
 const annualTrend = computed(() => {
@@ -1018,6 +1044,10 @@ page { background: #f5f5f5; }
 .metric-cell {
   width: calc(50% - 10rpx); background: #f9f9fb; border-radius: 8rpx; padding: 20rpx;
   box-sizing: border-box;
+}
+/* 货币理财收益型指标：3 列等宽 */
+.metric-cell.third {
+  width: calc((100% - 40rpx) / 3);
 }
 .metric-label { font-size: 22rpx; color: #999; display: block; margin-bottom: 8rpx; }
 .metric-value { font-size: 32rpx; font-weight: bold; color: #333; }

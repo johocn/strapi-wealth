@@ -39,7 +39,7 @@
         <!-- 表头 -->
         <view class="cmp-row head">
           <view class="cmp-cell label">指标</view>
-          <view v-for="p in compared" :key="p.id || p.documentId" class="cmp-cell product">
+          <view v-for="p in compared" :key="p.productId || p.id || p.documentId" class="cmp-cell product">
             {{ p.productName }}
           </view>
         </view>
@@ -164,7 +164,8 @@ async function doCompare() {
   try {
     const ids = selected.value.map((p: any) => p.id || p.documentId)
     const res = await compareProducts(ids, period.value)
-    const list = res?.products || res?.list || res?.items || []
+    // 后端返回 successResponse(data) 时 data 为数组，extractItem 已解包为数组
+    const list = Array.isArray(res) ? res : (res?.products || res?.list || res?.items || [])
     compared.value = list
     if (!list.length) {
       uni.showToast({ title: '暂无对比数据', icon: 'none' })
@@ -195,19 +196,19 @@ function fieldValue(row: Row, p: any): number | string | null {
     case 'productType':
       return getTypeLabel(p.productType)
     case 'annual1m':
-      return p.latestAnnual1m ?? p.annual1m ?? p.annualized1m ?? null
+      return p.annualSnapshot?.annual1m ?? null
     case 'annual1y':
-      return p.latestAnnual1y ?? p.annual1y ?? p.annualized1y ?? null
+      return p.annualSnapshot?.annual1y ?? null
     case 'maxDrawdown':
-      return p.maxDrawdown ?? p.max_drawdown ?? null
+      return p.riskMetric?.maxDrawdown ?? null
     case 'volatility':
-      return p.volatility ?? null
+      return p.riskMetric?.volatility ?? null
     case 'calmar':
-      return p.calmar ?? null
+      return p.riskMetric?.calmarRatio ?? null
     case 'peerRankPercentile':
-      return p.peerRankPercentile ?? null
+      return p.riskMetric?.rankPercentile ?? null
     case 'latestNav':
-      return p.latestNav?.unitNav ?? p.unitNav ?? null
+      return p.latestNav?.unitNav ?? null
     default:
       return null
   }

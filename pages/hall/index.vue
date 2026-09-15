@@ -10,13 +10,13 @@
         <view class="recommend-list">
           <view
             v-for="item in recommendList"
-            :key="item.id || item.documentId"
+            :key="item.productId || item.id || item.documentId"
             class="recommend-card"
             @click="goDetail(item)"
           >
             <text class="rec-name">{{ item.productName || item.product?.productName }}</text>
-            <text class="rec-return" :class="getProfitClass(item.annual1m)">{{ formatPercent(item.annual1m) }}</text>
-            <text class="rec-period">近1月年化</text>
+            <text class="rec-return" :class="getProfitClass(item.annual1y)">{{ formatPercent(item.annual1y) }}</text>
+            <text class="rec-period">近1年年化</text>
           </view>
         </view>
       </scroll-view>
@@ -223,7 +223,7 @@ function nextPage() {
 }
 
 function goDetail(item: any) {
-  const id = item.id || item.documentId
+  const id = item.productId || item.id || item.documentId
   uni.navigateTo({ url: `/pages/detail/index?id=${id}` })
 }
 

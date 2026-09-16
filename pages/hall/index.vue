@@ -106,12 +106,13 @@ import { getProductList, getRecommendations, getScoreLeaderboard } from '@/servi
 import { formatPercent, getProfitClass, OPERATION_MODE_LABELS } from '@/utils/format'
 import { getLoginState } from '../../utils/storage'
 
-const TYPES = ['', 'bank-wealth', 'stock-fund', 'bond-fund', 'mixed-fund', 'money-fund']
-const typeLabels = ['全部类型', '银行理财', '股票基金', '债券基金', '混合基金', '货币基金']
+const TYPES = ['', 'bank-wealth', 'stock-fund', 'bond-fund', 'mixed-fund', 'money-fund', 'money-wealth']
+const typeLabels = ['全部类型', '银行理财', '股票基金', '债券基金', '混合基金', '货币基金', '货币理财']
 const RISKS = ['', 'R1', 'R2', 'R3', 'R4', 'R5']
 const riskLabels = ['全部风险', 'R1', 'R2', 'R3', 'R4', 'R5']
 const SORT_OPTIONS = [
   { key: 'score', label: '综合评分' },
+  { key: 'annual7d', label: '近7日年化' },
   { key: 'annual1m', label: '近1月年化' },
   { key: 'volatility', label: '波动率' },
 ]

@@ -15,8 +15,8 @@
             @click="goDetail(item)"
           >
             <text class="rec-name">{{ item.productName || item.product?.productName }}</text>
-            <text class="rec-return" :class="getProfitClass(item.annual1y)">{{ formatPercent(item.annual1y) }}</text>
-            <text class="rec-period">近1年年化</text>
+            <text class="rec-return" :class="getProfitClass(item.annual7d)">{{ formatPercent(item.annual7d) }}</text>
+            <text class="rec-period">近7日年化</text>
           </view>
         </view>
       </scroll-view>
@@ -36,14 +36,17 @@
             <view class="rank-badge" :class="'rank-' + (index + 1)">{{ index + 1 }}</view>
             <text class="lb-product-name">{{ item.productName || item.product?.productName }}</text>
             <StarRating :rating="item.score?.starRating || 0" :score="item.score?.compositeScore" show-score />
-            <text class="lb-annual" :class="getProfitClass(item.latestAnnual1m ?? item.annual1m)">
-              {{ formatPercent(item.latestAnnual1m ?? item.annual1m) }}
+            <text class="lb-annual" :class="getProfitClass(item.latestAnnual7d ?? item.annual7d)">
+              {{ formatPercent(item.latestAnnual7d ?? item.annual7d) }}
             </text>
-            <text class="lb-period">近1月年化</text>
+            <text class="lb-period">近7日年化</text>
           </view>
         </view>
       </scroll-view>
     </view>
+
+    <!-- 数据更新提示 -->
+    <view v-if="latestNavDate" class="update-tip">数据更新至 {{ latestNavDate }}</view>
 
     <!-- 搜索 -->
     <view class="search-bar">
@@ -111,6 +114,7 @@ const typeLabels = ['全部类型', '银行理财', '股票基金', '债券基�
 const RISKS = ['', 'R1', 'R2', 'R3', 'R4', 'R5']
 const riskLabels = ['全部风险', 'R1', 'R2', 'R3', 'R4', 'R5']
 const SORT_OPTIONS = [
+  { key: 'latestNav', label: '最近更新' },
   { key: 'score', label: '综合评分' },
   { key: 'annual7d', label: '近7日年化' },
   { key: 'annual1m', label: '近1月年化' },
@@ -126,6 +130,7 @@ const filterOperationMode = ref('')
 const page = ref(1)
 const pageSize = 10
 const list = ref<any[]>([])
+const latestNavDate = ref('')
 const loading = ref(false)
 const hasNext = ref(false)
 const recommendList = ref<any[]>([])
@@ -156,6 +161,7 @@ async function load() {
     params.sortBy = SORT_OPTIONS[sortIndex.value].key
     const res = await getProductList(params)
     list.value = res.list || []
+    latestNavDate.value = res.latestNavDate || ''
     const total = res.pagination?.total ?? list.value.length
     hasNext.value = page.value * pageSize < total
   } catch (e: any) {
@@ -233,6 +239,13 @@ onMounted(() => {
   loadLeaderboard()
   load()
 })
+
+// pages.json 已开启 enablePullDownRefresh，配合 onPullDownRefresh
+async function onPullDownRefresh() {
+  page.value = 1
+  await load()
+  uni.stopPullDownRefresh()
+}
 </script>
 
 <style scoped>
@@ -348,4 +361,8 @@ page { background: #f5f5f5; }
   padding: 8rpx 20rpx; border-radius: 20rpx;
 }
 .mode-option.active { background: #667eea; color: #fff; }
+
+.update-tip {
+  font-size: 22rpx; color: #999; padding: 8rpx 24rpx 0;
+}
 </style>

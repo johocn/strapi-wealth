@@ -3,7 +3,8 @@
 		{
 			"path": "pages/hall/index",
 			"style": {
-				"navigationBarTitleText": "产品发现"
+				"navigationBarTitleText": "产品发现",
+				"enablePullDownRefresh": true
 			}
 		},
 		{

@@ -52,7 +52,7 @@
             </view>
           </view>
           <view class="product-allocation">
-            <text class="allocation-pct">{{ (product.allocationRatio * 100).toFixed(0) }}%</text>
+            <text class="allocation-pct">{{ product.allocationRatio != null ? (product.allocationRatio * 100).toFixed(0) + '%' : '等权' }}</text>
             <text class="allocation-label">配比</text>
           </view>
         </view>

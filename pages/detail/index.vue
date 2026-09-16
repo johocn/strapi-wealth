@@ -266,33 +266,97 @@
       <view class="popup-card" @click.stop="">
         <view class="popup-title">预约咨询</view>
         <view class="popup-product-name">{{ product?.productName }}</view>
-        <view class="popup-field">
-          <text class="popup-label">姓名 <text class="required">*</text></text>
-          <input class="popup-input" v-model="consultForm.name" placeholder="请输入您的姓名" maxlength="20" />
+        <view class="popup-tabs">
+          <view
+            v-for="t in CONSULT_TABS"
+            :key="t.value"
+            class="popup-tab"
+            :class="{ active: consultForm.submitType === t.value }"
+            @click="consultForm.submitType = t.value"
+          >{{ t.label }}</view>
         </view>
-        <view class="popup-field">
-          <text class="popup-label">手机号 <text class="required">*</text></text>
-          <input class="popup-input" v-model="consultForm.phone" placeholder="请输入11位手机号" type="number" maxlength="11" />
-        </view>
-        <view class="popup-field">
-          <text class="popup-label">咨询方式</text>
-          <view class="channel-tabs">
-            <view
-              v-for="ch in CONSULT_CHANNELS"
-              :key="ch.value"
-              class="channel-tab"
-              :class="{ active: consultForm.preferredChannel === ch.value }"
-              @click="consultForm.preferredChannel = ch.value"
-            >{{ ch.label }}</view>
+
+        <!-- 电话渠道 -->
+        <template v-if="consultForm.submitType === 'phone'">
+          <view class="popup-field">
+            <text class="popup-label">网名</text>
+            <input class="popup-input" v-model="consultForm.name" placeholder="请输入您的称呼" maxlength="20" />
           </view>
-        </view>
-        <view class="popup-field">
-          <text class="popup-label">备注</text>
-          <textarea class="popup-textarea" v-model="consultForm.message" placeholder="请输入备注信息（可选）" maxlength="200" />
-        </view>
+          <view class="popup-field">
+            <text class="popup-label">手机号 <text class="required">*</text></text>
+            <input class="popup-input" v-model="consultForm.phone" placeholder="请输入11位手机号" type="number" maxlength="11" />
+          </view>
+          <view class="popup-field">
+            <text class="popup-label">咨询方式</text>
+            <view class="channel-tabs">
+              <view
+                v-for="ch in CONSULT_CHANNELS"
+                :key="ch.value"
+                class="channel-tab"
+                :class="{ active: consultForm.preferredChannel === ch.value }"
+                @click="consultForm.preferredChannel = ch.value"
+              >{{ ch.label }}</view>
+            </view>
+          </view>
+        </template>
+
+        <!-- 微信渠道（纯二维码展示） -->
+        <template v-else-if="consultForm.submitType === 'wechat'">
+          <view class="wechat-tip">扫码或复制微信号，添加理财顾问微信咨询</view>
+          <view class="wechat-qr-row" v-if="consultConfig.enterpriseWechatQr || consultConfig.personalWechatQr">
+            <view class="wechat-qr-item" v-if="consultConfig.enterpriseWechatQr">
+              <image class="wechat-qr-img" :src="consultConfig.enterpriseWechatQr" mode="aspectFit" />
+              <text class="wechat-qr-label">企业微信</text>
+              <view class="wechat-id-row" v-if="consultConfig.enterpriseWechatId">
+                <text class="wechat-id">{{ consultConfig.enterpriseWechatId }}</text>
+                <view class="wechat-copy" @click="copyWechatId(consultConfig.enterpriseWechatId)">复制</view>
+              </view>
+            </view>
+            <view class="wechat-qr-item" v-if="consultConfig.personalWechatQr">
+              <image class="wechat-qr-img" :src="consultConfig.personalWechatQr" mode="aspectFit" />
+              <text class="wechat-qr-label">个人微信</text>
+              <view class="wechat-id-row" v-if="consultConfig.personalWechatId">
+                <text class="wechat-id">{{ consultConfig.personalWechatId }}</text>
+                <view class="wechat-copy" @click="copyWechatId(consultConfig.personalWechatId)">复制</view>
+              </view>
+            </view>
+          </view>
+          <view class="wechat-empty" v-else>二维码配置中，请使用电话或留言咨询</view>
+        </template>
+
+        <!-- 留言渠道 -->
+        <template v-else>
+          <view class="popup-field">
+            <text class="popup-label">网名</text>
+            <input class="popup-input" v-model="consultForm.name" placeholder="选填" maxlength="20" />
+          </view>
+          <view class="popup-field">
+            <text class="popup-label">留言内容 <text class="required">*</text></text>
+            <textarea class="popup-textarea" v-model="consultForm.message" placeholder="请输入想咨询的内容" maxlength="500" />
+          </view>
+          <view class="popup-field">
+            <text class="popup-label">预留联系方式 <text class="required">*</text></text>
+            <view class="channel-tabs">
+              <view
+                v-for="ct in CONTACT_TYPES"
+                :key="ct.value"
+                class="channel-tab"
+                :class="{ active: consultForm.contactType === ct.value }"
+                @click="consultForm.contactType = ct.value"
+              >{{ ct.label }}</view>
+            </view>
+            <input
+              class="popup-input"
+              v-model="consultForm.contactValue"
+              :placeholder="consultForm.contactType === 'phone' ? '请输入手机号' : consultForm.contactType === 'email' ? '请输入邮箱' : '请输入微信号'"
+              :type="consultForm.contactType === 'phone' ? 'number' : 'text'"
+              :maxlength="consultForm.contactType === 'phone' ? 11 : 60"
+            />
+          </view>
+        </template>
         <view class="popup-actions">
           <view class="popup-btn-cancel" @click="showConsultPopup = false">取消</view>
-          <view class="popup-btn-submit" @click="submitConsultation">提交</view>
+          <view class="popup-btn-submit" v-if="consultForm.submitType !== 'wechat'" @click="submitConsultation">提交</view>
         </view>
       </view>
     </view>
@@ -305,10 +369,6 @@
         <view class="popup-field">
           <text class="popup-label">方案名称 <text class="required">*</text></text>
           <input class="popup-input" v-model="portfolioForm.planName" placeholder="请输入方案名称" maxlength="30" />
-        </view>
-        <view class="popup-field">
-          <text class="popup-label">配比(%) <text class="required">*</text></text>
-          <input class="popup-input" v-model="portfolioForm.allocationRatio" placeholder="1-100" type="digit" maxlength="3" />
         </view>
         <view class="popup-field">
           <text class="popup-label">假设金额（可选）</text>
@@ -394,7 +454,8 @@ import StarRating from '@/components/star-rating.vue'
 import {
   getProductDetail, getProductAnnualSnapshot, getProductRiskMetric,
   getProductNavSeries, getProductYearlyReturn, getProductMoneyIncomes,
-  getProductScore, getRiskDisclosure, createConsultation, createPortfolioPlan
+  getProductScore, getRiskDisclosure, createConsultation, createPortfolioPlan,
+  getConsultConfig
 } from '@/services/api'
 import {
   formatPercent, getProfitClass, getTypeLabel,
@@ -432,18 +493,31 @@ const CONSULT_CHANNELS = [
   { label: '网点', value: 'branch' },
   { label: '电话', value: 'phone' },
 ]
+const CONSULT_TABS = [
+  { label: '电话', value: 'phone' },
+  { label: '微信', value: 'wechat' },
+  { label: '留言', value: 'message' },
+]
+const CONTACT_TYPES = [
+  { label: '电话', value: 'phone' },
+  { label: '邮箱', value: 'email' },
+  { label: '微信', value: 'wechat' },
+]
+const consultConfig = ref({ enterpriseWechatQr: '', personalWechatQr: '', enterpriseWechatId: '', personalWechatId: '' })
 const consultForm = ref({
+  submitType: 'phone' as 'phone' | 'wechat' | 'message',
   name: '',
   phone: '',
   preferredChannel: 'online' as 'online' | 'branch' | 'phone',
   message: '',
+  contactType: 'phone' as 'phone' | 'email' | 'wechat',
+  contactValue: '',
 })
 
 // 创建组合方案弹窗
 const showPortfolioPopup = ref(false)
 const portfolioForm = ref({
   planName: '',
-  allocationRatio: '1',
   totalAmount: '',
 })
 
@@ -787,7 +861,6 @@ function onAddToPortfolio() {
   // 初始化表单默认值并弹出创建弹窗
   portfolioForm.value = {
     planName: (product.value?.productName || '产品') + '组合',
-    allocationRatio: '1',
     totalAmount: '',
   }
   showPortfolioPopup.value = true
@@ -796,13 +869,8 @@ function onAddToPortfolio() {
 // 提交创建组合方案
 async function submitCreatePortfolio() {
   // 表单验证
-  const ratio = Number(portfolioForm.value.allocationRatio)
   if (!portfolioForm.value.planName.trim()) {
     uni.showToast({ title: '请输入方案名称', icon: 'none' })
-    return
-  }
-  if (isNaN(ratio) || ratio < 1 || ratio > 100) {
-    uni.showToast({ title: '配比需在1-100之间', icon: 'none' })
     return
   }
   const pid = product.value?.id || product.value?.documentId
@@ -818,7 +886,7 @@ async function submitCreatePortfolio() {
       products: [{
         productId: product.value?.id,
         productName: product.value?.productName,
-        allocationRatio: ratio / 100,
+        allocationRatio: 1,
         addedDate: new Date().toISOString().split('T')[0],
       }],
       totalAmount: portfolioForm.value.totalAmount ? Number(portfolioForm.value.totalAmount) : null,
@@ -848,46 +916,68 @@ function onConsult() {
   }
   // 重置表单并弹出咨询弹窗
   consultForm.value = {
+    submitType: 'phone',
     name: '',
     phone: '',
     preferredChannel: 'online',
     message: '',
+    contactType: 'phone',
+    contactValue: '',
   }
+  loadConsultConfig()
   showConsultPopup.value = true
+}
+
+function copyWechatId(id: string) {
+  uni.setClipboardData({
+    data: id,
+    success: () => uni.showToast({ title: '微信号已复制', icon: 'none' }),
+  })
+}
+
+async function loadConsultConfig() {
+  try {
+    consultConfig.value = await getConsultConfig()
+  } catch (e) {
+    consultConfig.value = { enterpriseWechatQr: '', personalWechatQr: '', enterpriseWechatId: '', personalWechatId: '' }
+  }
 }
 
 // 提交预约咨询
 async function submitConsultation() {
-  // 表单验证
-  const { name, phone } = consultForm.value
-  if (!name.trim()) {
-    uni.showToast({ title: '请输入姓名', icon: 'none' })
-    return
-  }
-  if (!phone || !/^1\d{10}$/.test(phone)) {
+  const f = consultForm.value
+  if (f.submitType === 'phone' && (!f.phone || !/^1\d{10}$/.test(f.phone))) {
     uni.showToast({ title: '请输入正确的11位手机号', icon: 'none' })
     return
   }
-  const pid = product.value?.id || product.value?.documentId
-  if (!pid) {
-    uni.showToast({ title: '产品信息缺失', icon: 'none' })
-    return
+  if (f.submitType === 'message') {
+    if (!f.message.trim()) {
+      uni.showToast({ title: '请输入留言内容', icon: 'none' })
+      return
+    }
+    if (!f.contactValue.trim()) {
+      uni.showToast({ title: '请预留联系方式', icon: 'none' })
+      return
+    }
   }
   uni.showLoading({ title: '提交中...' })
   try {
     await createConsultation({
-      name: consultForm.value.name.trim(),
-      phone: consultForm.value.phone,
+      submitType: f.submitType,
+      name: f.name.trim() || undefined,
+      phone: f.submitType === 'phone' ? f.phone : undefined,
+      contactType: f.submitType === 'message' ? f.contactType : undefined,
+      contactValue: f.submitType === 'message' ? f.contactValue.trim() : undefined,
       productId: product.value?.id || product.value?.documentId,
-      preferredChannel: consultForm.value.preferredChannel,
-      message: consultForm.value.message,
+      preferredChannel: f.preferredChannel,
+      message: f.submitType === 'message' ? f.message : undefined,
     })
     uni.hideLoading()
     showConsultPopup.value = false
-    uni.showToast({ title: '预约请求已提交', icon: 'success' })
+    uni.showToast({ title: '提交成功', icon: 'success' })
   } catch (e: any) {
     uni.hideLoading()
-    uni.showToast({ title: e.message || '预约失败', icon: 'none' })
+    uni.showToast({ title: e.message || '提交失败', icon: 'none' })
   }
 }
 
@@ -1244,6 +1334,50 @@ page { background: #f5f5f5; }
 .channel-tab.active {
   background: #f0f4ff; color: #667eea; font-weight: bold;
   border-color: #667eea;
+}
+/* 咨询渠道 Tab 切换 */
+.popup-tabs {
+  display: flex; gap: 16rpx; margin-bottom: 24rpx;
+}
+.popup-tab {
+  flex: 1; text-align: center; font-size: 26rpx;
+  padding: 14rpx 0; border-radius: 8rpx;
+  background: #f5f5f5; color: #666;
+  border: 1rpx solid transparent;
+}
+.popup-tab.active {
+  background: #f0f4ff; color: #667eea; font-weight: bold;
+  border-color: #667eea;
+}
+/* 微信渠道二维码展示 */
+.wechat-tip {
+  font-size: 24rpx; color: #999; margin-bottom: 20rpx;
+}
+.wechat-qr-row {
+  display: flex; gap: 20rpx;
+}
+.wechat-qr-item {
+  flex: 1; text-align: center;
+  background: #fafafa; border-radius: 12rpx; padding: 20rpx 12rpx;
+}
+.wechat-qr-img {
+  width: 220rpx; height: 220rpx;
+}
+.wechat-qr-label {
+  display: block; font-size: 24rpx; color: #666; margin-top: 12rpx;
+}
+.wechat-id-row {
+  display: flex; align-items: center; justify-content: center; gap: 12rpx; margin-top: 10rpx;
+}
+.wechat-id {
+  font-size: 22rpx; color: #333;
+}
+.wechat-copy {
+  font-size: 22rpx; color: #667eea; border: 1rpx solid #667eea;
+  padding: 2rpx 14rpx; border-radius: 16rpx;
+}
+.wechat-empty {
+  font-size: 26rpx; color: #999; text-align: center; padding: 40rpx 0;
 }
 /* 弹窗操作按钮 */
 .popup-actions {

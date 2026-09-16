@@ -19,13 +19,11 @@
 
     <view class="card-annual">
       <view class="annual-main">
-        <text class="annual-label">
-          {{ isMoney ? '七日年化' : '近1月年化' }}
-          <text v-if="!isMoney && isShort" class="estimate-tag">估算</text>
-        </text>
-        <text class="annual-value" :class="getProfitClass(displayAnnual)">
+        <text class="annual-label">近7日年化</text>
+        <text v-if="displayAnnual !== null" class="annual-value" :class="getProfitClass(displayAnnual)">
           {{ formatPercent(displayAnnual) }}
         </text>
+        <text v-else class="annual-value annual-empty">数据积累中</text>
       </view>
       <view class="annual-sub" v-if="product.latestNav?.unitNav">
         <text class="nav-label">单位净值</text>
@@ -53,18 +51,10 @@ const emit = defineEmits<{
   (e: 'click', product: any): void
 }>()
 
-const isShort = computed(() => {
-  const p = props.period || 'm1'
-  return p === 'd1' || p === 'd3'
-})
-
-// 货币型/现金管理类产品：有七日年化数据时展示七日年化，否则展示近1月年化
-const isMoney = computed(() => {
-  return props.product.latestSevenDayAnnual !== undefined && props.product.latestSevenDayAnnual !== null
-})
-
-const displayAnnual = computed(() => {
-  return isMoney.value ? props.product.latestSevenDayAnnual : props.product.latestAnnual1m
+// 统一展示近7日年化（年化快照 annual7d），无数据时显示"数据积累中"
+const displayAnnual = computed<number | null>(() => {
+  const v = props.product.latestAnnual7d ?? props.product.annual7d
+  return v !== undefined && v !== null ? Number(v) : null
 })
 
 function handleClick() {
@@ -106,6 +96,7 @@ function handleClick() {
 .annual-value.up { color: #f5222d; }
 .annual-value.down { color: #07c160; }
 .annual-value.flat { color: #999; }
+.annual-value.annual-empty { font-size: 28rpx; color: #999; font-weight: normal; }
 .annual-sub { text-align: right; }
 .nav-label { font-size: 22rpx; color: #999; margin-right: 8rpx; }
 .nav-value { font-size: 26rpx; color: #333; }

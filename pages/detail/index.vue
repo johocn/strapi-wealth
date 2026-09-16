@@ -184,8 +184,8 @@
         <view class="nav-trend-chart">
           <view class="line-chart-body">
             <view class="line-chart-yaxis">
-              <text class="y-label">{{ navTrend.max.toFixed(4) }}</text>
-              <text class="y-label">{{ navTrend.min.toFixed(4) }}</text>
+              <text class="y-label">{{ navTrend.max.toFixed(6) }}</text>
+              <text class="y-label">{{ navTrend.min.toFixed(6) }}</text>
             </view>
             <view class="line-chart-svg" v-html="navLineSvg"></view>
           </view>
@@ -195,8 +195,8 @@
             <text class="x-label">{{ navTrend.points[navTrend.points.length - 1].date }}</text>
           </view>
           <view class="trend-info">
-            <text class="trend-min">最低: {{ navTrend.min.toFixed(4) }}</text>
-            <text class="trend-max">最高: {{ navTrend.max.toFixed(4) }}</text>
+            <text class="trend-min">最低: {{ navTrend.min.toFixed(6) }}</text>
+            <text class="trend-max">最高: {{ navTrend.max.toFixed(6) }}</text>
           </view>
         </view>
       </view>
@@ -457,7 +457,7 @@ const tableRows = computed<any[]>(() => {
   if (!isCashManagement.value) return navs.value
   return (moneyIncomes.value || []).slice(0, 10).map((r: any) => ({
     date: formatDate(r.date),
-    unit: r.tenThousandIncome != null ? Number(r.tenThousandIncome).toFixed(4) : '--',
+    unit: r.tenThousandIncome != null ? Number(r.tenThousandIncome).toFixed(6) : '--',
     acc: r.sevenDayAnnual != null ? formatPercent(r.sevenDayAnnual) : '--',
   }))
 })

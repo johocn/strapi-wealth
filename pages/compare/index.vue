@@ -107,8 +107,8 @@
       <view class="trend-chart">
         <view class="line-chart-body">
           <view class="line-chart-yaxis">
-            <text class="y-label">{{ formatPercent(trendAdjustedMax, 2) }}</text>
-            <text class="y-label">{{ formatPercent(trendAdjustedMin, 2) }}</text>
+            <text class="y-label">{{ formatTrendPercent(trendAdjustedMax) }}</text>
+            <text class="y-label">{{ formatTrendPercent(trendAdjustedMin) }}</text>
           </view>
           <view class="line-chart-svg" v-html="trendChartSvg"></view>
         </view>
@@ -228,6 +228,11 @@ async function doCompare() {
     loading.value = false
     trendLoaded.value = true
   }
+}
+
+// 趋势值已是百分数（如 1.5 表示 1.5%），不能复用 formatPercent（会再 ×100）
+function formatTrendPercent(v: number): string {
+  return v.toFixed(2) + '%'
 }
 
 // 趋势图 Y 轴范围

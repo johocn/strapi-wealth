@@ -68,6 +68,9 @@
     <view v-if="pickerOpen" class="modal-mask" @click="pickerOpen = false">
       <view class="modal" @click.stop>
         <view class="modal-title">选择产品（已选 {{ pickedIds.length }}）</view>
+        <view class="picker-search">
+          <input class="picker-search-input" v-model="pickerKeyword" placeholder="搜索产品名称" confirm-type="search" @confirm="onPickerSearch" @input="onPickerSearch" />
+        </view>
         <scroll-view scroll-y class="modal-list">
           <view
             v-for="p in pickerList"
@@ -91,13 +94,43 @@
       </view>
     </view>
 
+    <!-- 趋势对比（累计收益%） -->
+    <view v-if="trendData && trendData.dates && trendData.dates.length >= 2" class="card">
+      <view class="section-title">趋势对比（累计收益%）</view>
+      <view class="trend-legend">
+        <view v-for="(s, i) in trendData.series" :key="s.productId" class="trend-legend-item">
+          <text class="trend-legend-line" :style="{ background: TREND_COLORS[i % TREND_COLORS.length] }"></text>
+          <text class="trend-legend-name">{{ s.productName }}</text>
+          <text v-if="s.productType === 'money-wealth'" class="trend-legend-tag">货币理财</text>
+        </view>
+      </view>
+      <view class="trend-chart">
+        <view class="line-chart-body">
+          <view class="line-chart-yaxis">
+            <text class="y-label">{{ formatPercent(trendAdjustedMax, 2) }}</text>
+            <text class="y-label">{{ formatPercent(trendAdjustedMin, 2) }}</text>
+          </view>
+          <view class="line-chart-svg" v-html="trendChartSvg"></view>
+        </view>
+        <view class="line-chart-xaxis">
+          <text class="x-label">{{ trendData.dates[0] }}</text>
+          <text class="x-label">{{ trendData.dates[trendData.dates.length - 1] }}</text>
+        </view>
+      </view>
+      <view class="chart-note">累计收益：普通产品按净值涨跌、货币理财按万份收益累计。历史业绩不预示未来收益</view>
+    </view>
+    <view v-else-if="trendLoaded && compared.length" class="card">
+      <view class="section-title">趋势对比</view>
+      <view class="empty-inline">数据积累中，暂不展示趋势</view>
+    </view>
+
     <view class="footer-disclaimer">理财非存款，产品有风险，投资需谨慎</view>
   </view>
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
-import { getProductList, compareProducts } from '../../services/api'
+import { ref, onMounted, computed } from 'vue'
+import { getProductList, compareProducts, compareTrend } from '../../services/api'
 import { formatPercent, getTypeLabel } from '../../utils/format'
 
 const COMPARE_PERIODS = [
@@ -112,18 +145,34 @@ const selected = ref<any[]>([])
 const compared = ref<any[]>([])
 const loading = ref(false)
 
+// 趋势对比（累计收益%）
+const trendData = ref<any>(null)
+const trendLoaded = ref(false)
+const TREND_COLORS = ['#667eea', '#f5222d', '#07c160', '#fa8c16']
+
 // 选品弹窗
 const pickerOpen = ref(false)
 const pickerList = ref<any[]>([])
 const pickedIds = ref<string[]>([])
+const pickerKeyword = ref('')
+const searchTimer = ref<any>(null)
 
 async function loadPicker() {
   try {
-    const res = await getProductList({ page: 1, pageSize: 100 })
+    const params: any = { page: 1, pageSize: 100 }
+    if (pickerKeyword.value) params.productName = pickerKeyword.value
+    const res = await getProductList(params)
     pickerList.value = res.list || []
   } catch (e) {
     pickerList.value = []
   }
+}
+
+function onPickerSearch() {
+  if (searchTimer.value) clearTimeout(searchTimer.value)
+  searchTimer.value = setTimeout(() => {
+    pickerOpen.value && loadPicker()
+  }, 300)
 }
 
 function openPicker() {
@@ -161,21 +210,82 @@ function removeSelected(p: any) {
 async function doCompare() {
   if (selected.value.length < 2) return
   loading.value = true
+  trendLoaded.value = false
+  trendData.value = null
   try {
     const ids = selected.value.map((p: any) => p.id || p.documentId)
-    const res = await compareProducts(ids, period.value)
-    // 后端返回 successResponse(data) 时 data 为数组，extractItem 已解包为数组
-    const list = Array.isArray(res) ? res : (res?.products || res?.list || res?.items || [])
-    compared.value = list
-    if (!list.length) {
-      uni.showToast({ title: '暂无对比数据', icon: 'none' })
-    }
+    const [cmp, trend] = await Promise.all([
+      compareProducts(ids, period.value),
+      compareTrend(ids, period.value),
+    ])
+    compared.value = cmp || []
+    trendData.value = trend
   } catch (e: any) {
     uni.showToast({ title: e.message || '对比失败', icon: 'none' })
+    compared.value = []
+    trendData.value = null
   } finally {
     loading.value = false
+    trendLoaded.value = true
   }
 }
+
+// 趋势图 Y 轴范围
+const trendAdjustedMin = computed(() => {
+  const data = trendData.value
+  if (!data || !data.series?.length) return 0
+  const all = data.series.flatMap((s: any) => s.values)
+  if (!all.length) return 0
+  const min = Math.min(...all)
+  const range = Math.max(...all) - min || 0.0001
+  return min - range * 0.15
+})
+const trendAdjustedMax = computed(() => {
+  const data = trendData.value
+  if (!data || !data.series?.length) return 0
+  const all = data.series.flatMap((s: any) => s.values)
+  if (!all.length) return 0
+  const max = Math.max(...all)
+  const range = max - Math.min(...all) || 0.0001
+  return max + range * 0.15
+})
+
+// 多产品趋势折线 SVG（X 轴按日期索引等距，Y 轴统一区间）
+const trendChartSvg = computed(() => {
+  const data = trendData.value
+  if (!data || !data.dates || data.dates.length < 2 || !data.series?.length) return ''
+  const w = 300, h = 160
+  const all = data.series.flatMap((s: any) => s.values)
+  const max = Math.max(...all)
+  const min = Math.min(...all)
+  const range = max - min || 0.0001
+  const padding = range * 0.15
+  const adjustedMin = min - padding
+  const adjustedMax = max + padding
+  const adjustedRange = adjustedMax - adjustedMin || 0.0001
+  const n = data.dates.length
+
+  const lines = data.series.map((s: any, idx: number) => {
+    const color = TREND_COLORS[idx % TREND_COLORS.length]
+    const pts = s.values.map((v: number, i: number) => ({
+      x: n > 1 ? (i / (n - 1)) * 100 : 50,
+      y: ((adjustedMax - v) / adjustedRange) * 100,
+    }))
+    const polylinePts = pts.map(p => `${(p.x / 100 * w).toFixed(1)},${(p.y / 100 * h).toFixed(1)}`).join(' ')
+    const dash = s.productType === 'money-wealth' ? ' stroke-dasharray="4 3"' : ''
+    const circles = pts.map(p =>
+      `<circle cx="${(p.x / 100 * w).toFixed(1)}" cy="${(p.y / 100 * h).toFixed(1)}" r="1.8" fill="${color}"/>`
+    ).join('')
+    return `<polyline points="${polylinePts}" stroke="${color}" fill="none" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"${dash}/>${circles}`
+  }).join('')
+
+  return `<svg viewBox="0 0 ${w} ${h}" preserveAspectRatio="none" width="100%" height="${h}">
+    <line x1="0" y1="0" x2="${w}" y2="0" stroke="#f0f0f0" stroke-width="1"/>
+    <line x1="0" y1="${h / 2}" x2="${w}" y2="${h / 2}" stroke="#f0f0f0" stroke-width="1"/>
+    <line x1="0" y1="${h}" x2="${w}" y2="${h}" stroke="#f0f0f0" stroke-width="1"/>
+    ${lines}
+  </svg>`
+})
 
 // 行定义：direction 高优/低优
 type Row = { key: string; label: string; direction?: 'high' | 'low' }
@@ -349,6 +459,8 @@ page { background: #f5f5f5; }
   display: flex; flex-direction: column;
 }
 .modal-title { font-size: 30rpx; font-weight: bold; color: #333; margin-bottom: 20rpx; text-align: center; }
+.picker-search { padding: 16rpx 20rpx; border-bottom: 1rpx solid #f0f0f0; }
+.picker-search-input { background: #f5f5f5; border-radius: 8rpx; height: 60rpx; padding: 0 20rpx; font-size: 26rpx; }
 .modal-list { max-height: 60vh; }
 .pick-item {
   display: flex; align-items: center; padding: 20rpx 0;
@@ -374,6 +486,22 @@ page { background: #f5f5f5; }
 }
 .modal-btn.cancel { background: #f5f5f5; color: #666; }
 .modal-btn.confirm { background: #667eea; color: #fff; }
+
+/* 趋势对比 */
+.trend-legend { display: flex; flex-wrap: wrap; gap: 20rpx; margin-bottom: 16rpx; }
+.trend-legend-item { display: flex; align-items: center; gap: 8rpx; }
+.trend-legend-line { width: 40rpx; height: 6rpx; border-radius: 3rpx; }
+.trend-legend-name { font-size: 22rpx; color: #333; }
+.trend-legend-tag { font-size: 18rpx; color: #999; background: #f5f5f5; padding: 2rpx 10rpx; border-radius: 6rpx; }
+.trend-chart { background: #fafafa; border-radius: 10rpx; padding: 16rpx; }
+.line-chart-body { display: flex; }
+.line-chart-yaxis { width: 90rpx; display: flex; flex-direction: column; justify-content: space-between; padding: 4rpx 8rpx 4rpx 0; }
+.y-label { font-size: 18rpx; color: #999; }
+.line-chart-svg { flex: 1; }
+.line-chart-xaxis { display: flex; justify-content: space-between; padding: 8rpx 4rpx 0; }
+.x-label { font-size: 18rpx; color: #999; }
+.chart-note { font-size: 20rpx; color: #999; margin-top: 12rpx; }
+.empty-inline { text-align: center; color: #999; font-size: 24rpx; padding: 40rpx 0; }
 
 .footer-disclaimer { text-align: center; padding: 30rpx 0; color: #999; font-size: 22rpx; }
 </style>

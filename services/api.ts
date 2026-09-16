@@ -46,6 +46,11 @@ export function compareProducts(productIds: (string | number)[], period: string 
   return get(`${V1}/compare`, { productIds: productIds.join(','), period }).then(extractItem)
 }
 
+// 多产品累计收益趋势对比
+export function compareTrend(productIds: (string | number)[], period: string = 'm1') {
+  return get(`${V1}/compare/trend`, { productIds: productIds.join(','), period }).then(extractItem)
+}
+
 // ==================== 推荐 ====================
 export function getRecommendations(limit: number = 10) {
   return get(`${V1}/recommend`, { limit }).then(extractList)

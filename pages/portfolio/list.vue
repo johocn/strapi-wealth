@@ -25,6 +25,7 @@
         :key="plan.id"
         :plan="plan"
         @click="goDetail"
+        @rename="openRename"
       />
     </view>
 
@@ -33,12 +34,24 @@
       <text class="empty-text">创建你的第一个组合方案</text>
       <text class="empty-sub">智能筛选优质产品，配置个性化方案</text>
     </view>
+
+    <!-- 改名弹窗 -->
+    <view v-if="showRename" class="rename-mask" @click="showRename = false">
+      <view class="rename-card" @click.stop="">
+        <view class="rename-title">修改方案名称</view>
+        <input class="rename-input" v-model="renameName" maxlength="30" placeholder="请输入方案名称" />
+        <view class="rename-actions">
+          <view class="rename-btn cancel" @click="showRename = false">取消</view>
+          <view class="rename-btn ok" @click="confirmRename">保存</view>
+        </view>
+      </view>
+    </view>
   </view>
 </template>
 
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
-import { getPortfolioPlans } from '@/services/api'
+import { getPortfolioPlans, updatePortfolioPlan } from '@/services/api'
 import { showError } from '@/utils/request'
 import PortfolioCard from '@/components/portfolio-card.vue'
 
@@ -63,6 +76,36 @@ async function loadPlans() {
 
 function goDetail(plan: any) {
   uni.navigateTo({ url: `/pages/portfolio/detail?id=${plan.id}` })
+}
+
+const showRename = ref(false)
+const renamePlan = ref<any>(null)
+const renameName = ref('')
+
+function openRename(plan: any) {
+  renamePlan.value = plan
+  renameName.value = plan.planName
+  showRename.value = true
+}
+
+async function confirmRename() {
+  const name = renameName.value.trim()
+  if (!name) {
+    uni.showToast({ title: '请输入方案名称', icon: 'none' })
+    return
+  }
+  if (!renamePlan.value) return
+  uni.showLoading({ title: '保存中...' })
+  try {
+    await updatePortfolioPlan(renamePlan.value.id, { planName: name })
+    uni.hideLoading()
+    showRename.value = false
+    uni.showToast({ title: '已保存', icon: 'success' })
+    await loadPlans()
+  } catch (error: any) {
+    uni.hideLoading()
+    showError(error.message || '保存失败')
+  }
 }
 
 function goCreate() {
@@ -130,5 +173,53 @@ function goCreate() {
 .empty-sub {
   font-size: 13px;
   color: #999;
+}
+.rename-mask {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.45);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 99;
+}
+.rename-card {
+  width: 80%;
+  background: #fff;
+  border-radius: 16px;
+  padding: 20px;
+}
+.rename-title {
+  font-size: 16px;
+  font-weight: 600;
+  color: #333;
+  margin-bottom: 14px;
+  text-align: center;
+}
+.rename-input {
+  border: 1px solid #e5e5e5;
+  border-radius: 8px;
+  padding: 10px 12px;
+  font-size: 14px;
+}
+.rename-actions {
+  display: flex;
+  gap: 12px;
+  margin-top: 16px;
+}
+.rename-btn {
+  flex: 1;
+  text-align: center;
+  padding: 10px 0;
+  border-radius: 999px;
+  font-size: 14px;
+}
+.rename-btn.cancel {
+  border: 1px solid #e5e5e5;
+  color: #666;
+}
+.rename-btn.ok {
+  background: #667eea;
+  color: #fff;
 }
 </style>

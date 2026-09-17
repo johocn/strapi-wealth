@@ -2,8 +2,11 @@
   <view class="portfolio-card" @click="$emit('click', plan)">
     <view class="card-header">
       <text class="plan-name">{{ plan.planName }}</text>
-      <view class="plan-type-tag" :class="plan.planType">
-        {{ planTypeLabel }}
+      <view class="card-header-right">
+        <view class="plan-type-tag" :class="plan.planType">
+          {{ planTypeLabel }}
+        </view>
+        <view class="card-rename" @click.stop="$emit('rename', plan)">改名</view>
       </view>
     </view>
     <view class="card-body">
@@ -31,7 +34,7 @@ const props = defineProps<{
   plan: any
 }>()
 
-defineEmits(['click'])
+defineEmits(['click', 'rename'])
 
 const planTypeLabel = computed(() => {
   return PLAN_TYPE_LABELS[props.plan.planType] || '自定义'
@@ -86,6 +89,18 @@ function formatDate(date: string): string {
 .plan-type-tag.balanced { background: #ecf5ff; color: #409eff; }
 .plan-type-tag.aggressive { background: #fef0f0; color: #f56c6c; }
 .plan-type-tag.custom { background: #f4f4f5; color: #909399; }
+.card-header-right {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.card-rename {
+  font-size: 12px;
+  color: #667eea;
+  border: 1px solid #667eea;
+  border-radius: 999px;
+  padding: 2px 10px;
+}
 .card-body {
   display: flex;
   justify-content: space-around;

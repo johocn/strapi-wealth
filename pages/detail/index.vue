@@ -349,14 +349,44 @@
       </view>
     </view>
 
-    <!-- 创建组合方案弹窗 -->
+    <!-- 加入组合方案弹窗 -->
     <view v-if="showPortfolioPopup" class="popup-mask" @click="showPortfolioPopup = false">
       <view class="popup-card" @click.stop="">
         <view class="popup-title">加入组合方案</view>
         <view class="popup-product-name">{{ product?.productName }}</view>
+
+        <template v-if="myPlans.length > 0">
+          <view class="popup-field">
+            <text class="popup-label">加入已有组合</text>
+            <view
+              v-for="p in myPlans"
+              :key="p.id"
+              class="plan-option"
+              :class="{ active: portfolioForm.mode === 'existing' && portfolioForm.planId === p.id }"
+              @click="selectPlan(p)"
+            >
+              <view class="plan-option-radio"></view>
+              <view class="plan-option-info">
+                <text class="plan-option-name">{{ p.planName }}</text>
+                <text class="plan-option-meta">{{ planProductCount(p) }} 只产品{{ p.totalAmount ? ' · ' + formatPlanAmount(p.totalAmount) : '' }}</text>
+              </view>
+            </view>
+          </view>
+          <view class="popup-divider"></view>
+        </template>
+
         <view class="popup-field">
-          <text class="popup-label">方案名称 <text class="required">*</text></text>
-          <input class="popup-input" v-model="portfolioForm.planName" placeholder="请输入方案名称" maxlength="30" />
+          <text class="popup-label">新建方案</text>
+          <view class="preset-names">
+            <view
+              v-for="n in PRESET_PLAN_NAMES"
+              :key="n"
+              class="preset-name"
+              :class="{ active: portfolioForm.planName === n }"
+              @click="portfolioForm.planName = n; onPlanNameInput()"
+            >{{ n }}</view>
+          </view>
+          <input class="popup-input" v-model="portfolioForm.planName" placeholder="请输入方案名称" maxlength="30" @input="onPlanNameInput" />
         </view>
         <view class="popup-field">
           <text class="popup-label">假设金额（可选）</text>
@@ -364,7 +394,7 @@
         </view>
         <view class="popup-actions">
           <view class="popup-btn-cancel" @click="showPortfolioPopup = false">取消</view>
-          <view class="popup-btn-submit" @click="submitCreatePortfolio">创建</view>
+          <view class="popup-btn-submit" @click="submitCreatePortfolio">{{ portfolioForm.mode === 'existing' && portfolioForm.planId ? '加入该组合' : '创建' }}</view>
         </view>
       </view>
     </view>
@@ -507,9 +537,17 @@ const consultForm = ref({
 // 创建组合方案弹窗
 const showPortfolioPopup = ref(false)
 const portfolioForm = ref({
+  mode: 'new' as 'existing' | 'new',
+  planId: null as number | null,
   planName: '',
   totalAmount: '',
 })
+const myPlans = ref<any[]>([])
+const PRESET_PLAN_NAMES = ['稳健增值', '进取配置', '教育金储备']
+const CN_NUM = ['一', '二', '三', '四', '五', '六', '七', '八', '九', '十']
+function planSeqName(n: number): string {
+  return n <= 10 ? '方案' + CN_NUM[n - 1] : '方案' + n
+}
 
 const navs = computed<any[]>(() => {
   const list = navSeries.value || []
@@ -842,49 +880,100 @@ async function loadRiskDisclosure() {
 }
 
 // 加入组合方案
-function onAddToPortfolio() {
+async function onAddToPortfolio() {
   const loginState = getLoginState()
   if (!loginState.isLoggedIn) {
     uni.showToast({ title: '请先登录', icon: 'none' })
     return
   }
-  // 初始化表单默认值并弹出创建弹窗
+  try {
+    const res = await getPortfolioPlans({ page: 1, pageSize: 100 })
+    myPlans.value = res?.records || []
+  } catch {
+    myPlans.value = []
+  }
   portfolioForm.value = {
-    planName: (product.value?.productName || '产品') + '组合',
+    mode: 'new',
+    planId: null,
+    planName: planSeqName(myPlans.value.length + 1),
     totalAmount: '',
   }
   showPortfolioPopup.value = true
 }
 
+function planProductList(p: any): any[] {
+  return typeof p.products === 'string' ? JSON.parse(p.products) : (p.products || [])
+}
+function planProductCount(p: any): number {
+  return planProductList(p).length
+}
+function formatPlanAmount(amount: any): string {
+  if (!amount) return ''
+  const n = Number(amount)
+  if (isNaN(n)) return ''
+  return n >= 10000 ? (n / 10000).toFixed(2) + '万' : n.toFixed(0) + '元'
+}
+function selectPlan(p: any) {
+  portfolioForm.value.mode = 'existing'
+  portfolioForm.value.planId = p.id
+}
+function onPlanNameInput() {
+  portfolioForm.value.mode = 'new'
+  portfolioForm.value.planId = null
+}
+
 // 提交创建组合方案
 async function submitCreatePortfolio() {
-  // 表单验证
-  if (!portfolioForm.value.planName.trim()) {
-    uni.showToast({ title: '请输入方案名称', icon: 'none' })
-    return
-  }
   const pid = product.value?.id || product.value?.documentId
   if (!pid) {
     uni.showToast({ title: '产品信息缺失', icon: 'none' })
     return
   }
-  uni.showLoading({ title: '创建中...' })
+  const newProduct = {
+    productId: product.value?.id,
+    productName: product.value?.productName,
+    allocationRatio: 1,
+    addedDate: new Date().toISOString().split('T')[0],
+  }
+  uni.showLoading({ title: '保存中...' })
   try {
+    // 加入已有组合
+    if (portfolioForm.value.mode === 'existing' && portfolioForm.value.planId) {
+      const plan = myPlans.value.find((p) => p.id === portfolioForm.value.planId)
+      const cur = plan ? planProductList(plan) : []
+      if (cur.some((p) => Number(p.productId) === Number(newProduct.productId))) {
+        uni.hideLoading()
+        uni.showToast({ title: '该产品已在组合中', icon: 'none' })
+        return
+      }
+      await updatePortfolioPlan(portfolioForm.value.planId, {
+        products: [...cur, newProduct],
+        totalAmount: plan?.totalAmount ?? null,
+      })
+      uni.hideLoading()
+      showPortfolioPopup.value = false
+      uni.showToast({ title: '加入成功', icon: 'success' })
+      const targetId = portfolioForm.value.planId
+      setTimeout(() => {
+        uni.navigateTo({ url: `/pages/portfolio/detail?id=${targetId}` })
+      }, 1000)
+      return
+    }
+    // 新建方案
+    if (!portfolioForm.value.planName.trim()) {
+      uni.hideLoading()
+      uni.showToast({ title: '请输入方案名称', icon: 'none' })
+      return
+    }
     const res = await createPortfolioPlan({
       planName: portfolioForm.value.planName.trim(),
       planType: 'custom',
-      products: [{
-        productId: product.value?.id,
-        productName: product.value?.productName,
-        allocationRatio: 1,
-        addedDate: new Date().toISOString().split('T')[0],
-      }],
+      products: [newProduct],
       totalAmount: portfolioForm.value.totalAmount ? Number(portfolioForm.value.totalAmount) : null,
     })
     uni.hideLoading()
     showPortfolioPopup.value = false
     uni.showToast({ title: '创建成功', icon: 'success' })
-    // 跳转到组合详情页
     const newId = res?.id || res?.documentId
     if (newId) {
       setTimeout(() => {
@@ -893,7 +982,7 @@ async function submitCreatePortfolio() {
     }
   } catch (e: any) {
     uni.hideLoading()
-    uni.showToast({ title: e.message || '创建失败', icon: 'none' })
+    uni.showToast({ title: e.message || '操作失败', icon: 'none' })
   }
 }
 
@@ -1423,6 +1512,67 @@ page { background: #f5f5f5; }
   font-size: 12px;
   color: #999;
   font-weight: 400;
+}
+.plan-option {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  border: 1px solid #eee;
+  border-radius: 12px;
+  padding: 12px;
+  margin-bottom: 8px;
+}
+.plan-option.active {
+  border-color: #667eea;
+  background: #f5f7ff;
+}
+.plan-option-radio {
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  border: 1.5px solid #ccc;
+  flex-shrink: 0;
+}
+.plan-option.active .plan-option-radio {
+  border-color: #667eea;
+  background: #667eea;
+  box-shadow: inset 0 0 0 3px #fff;
+}
+.plan-option-info {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.plan-option-name {
+  font-size: 14px;
+  font-weight: 500;
+  color: #333;
+}
+.plan-option-meta {
+  font-size: 12px;
+  color: #999;
+}
+.preset-names {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+.preset-name {
+  border: 1px solid #eee;
+  border-radius: 999px;
+  padding: 5px 14px;
+  font-size: 12px;
+  color: #666;
+}
+.preset-name.active {
+  border-color: #667eea;
+  color: #667eea;
+  background: #f5f7ff;
+}
+.popup-divider {
+  height: 1px;
+  background: #f0f0f0;
+  margin: 4px 0 12px;
 }
 /* 弹窗操作按钮 */
 .popup-actions {

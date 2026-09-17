@@ -303,6 +303,16 @@
         <!-- 微信渠道（纯二维码展示） -->
         <template v-else-if="consultForm.submitType === 'wechat'">
           <view class="wechat-tip">扫码或复制微信号，添加理财顾问微信咨询</view>
+          <!-- 服务人信息：昵称/网点/电话 -->
+          <view class="wechat-servicer" v-if="consultConfig.nickname || consultConfig.branchName || (consultConfig.branchPhones && consultConfig.branchPhones.length)">
+            <view class="servicer-line" v-if="consultConfig.nickname || consultConfig.branchName">
+              <text class="servicer-name" v-if="consultConfig.nickname">{{ consultConfig.nickname }}</text>
+              <text class="servicer-branch" v-if="consultConfig.branchName">{{ consultConfig.branchName }}</text>
+            </view>
+            <view class="servicer-phones" v-if="consultConfig.branchPhones && consultConfig.branchPhones.length">
+              <text class="servicer-phone" v-for="(p, i) in consultConfig.branchPhones" :key="i" @click="callPhone(p)">{{ p }}</text>
+            </view>
+          </view>
           <view class="wechat-qr-row" v-if="consultConfig.enterpriseWechatQr || consultConfig.personalWechatQr">
             <view class="wechat-qr-item" v-if="consultConfig.enterpriseWechatQr">
               <image class="wechat-qr-img" :src="consultConfig.enterpriseWechatQr" mode="aspectFit" />
@@ -503,7 +513,7 @@ const CONTACT_TYPES = [
   { label: '邮箱', value: 'email' },
   { label: '微信', value: 'wechat' },
 ]
-const consultConfig = ref({ enterpriseWechatQr: '', personalWechatQr: '', enterpriseWechatId: '', personalWechatId: '' })
+const consultConfig = ref({ enterpriseWechatQr: '', personalWechatQr: '', enterpriseWechatId: '', personalWechatId: '', nickname: '', branchName: '', branchPhones: [] })
 const consultForm = ref({
   submitType: 'phone' as 'phone' | 'wechat' | 'message',
   name: '',
@@ -935,11 +945,35 @@ function copyWechatId(id: string) {
   })
 }
 
+function callPhone(phone: string) {
+  uni.makePhoneCall({ phoneNumber: phone })
+}
+
+// H5 定位：成功返回经纬度与城市，失败/拒权返回 null（自然落全局兜底）
+function locateCity(): Promise<{ latitude: number; longitude: number; city: string } | null> {
+  return new Promise((resolve) => {
+    uni.getLocation({
+      type: 'gcj02',
+      success: (res) => resolve({
+        latitude: res.latitude,
+        longitude: res.longitude,
+        city: (res as any).city || '',
+      }),
+      fail: () => resolve(null),
+    })
+  })
+}
+
 async function loadConsultConfig() {
+  const loc = await locateCity()
   try {
-    consultConfig.value = await getConsultConfig()
+    consultConfig.value = await getConsultConfig(loc ? {
+      city: loc.city,
+      latitude: loc.latitude,
+      longitude: loc.longitude,
+    } : {})
   } catch (e) {
-    consultConfig.value = { enterpriseWechatQr: '', personalWechatQr: '', enterpriseWechatId: '', personalWechatId: '' }
+    consultConfig.value = { enterpriseWechatQr: '', personalWechatQr: '', enterpriseWechatId: '', personalWechatId: '', nickname: '', branchName: '', branchPhones: [] }
   }
 }
 
@@ -1353,6 +1387,12 @@ page { background: #f5f5f5; }
 .wechat-tip {
   font-size: 24rpx; color: #999; margin-bottom: 20rpx;
 }
+.wechat-servicer { margin-bottom: 24rpx; }
+.servicer-line { display: flex; align-items: center; margin-bottom: 8rpx; }
+.servicer-name { font-size: 30rpx; font-weight: 600; color: #333; margin-right: 16rpx; }
+.servicer-branch { font-size: 26rpx; color: #888; }
+.servicer-phones { display: flex; flex-wrap: wrap; gap: 16rpx; }
+.servicer-phone { font-size: 26rpx; color: #2b6de8; text-decoration: underline; }
 .wechat-qr-row {
   display: flex; gap: 20rpx;
 }

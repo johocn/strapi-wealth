@@ -103,9 +103,9 @@ export const getConsultations = () =>
 export const cancelConsultation = (id: number) =>
   post(`${V1}/consultations/${id}/cancel`).then(extractItem)
 
-// 微信咨询配置（公开，返回二维码 URL 与微信号）
-export const getConsultConfig = () =>
-  get(`${V1}/consult/config`).then(extractItem)
+// 微信咨询配置（公开，返回二维码 URL 与微信号；可带 city/latitude/longitude 就近匹配服务人）
+export const getConsultConfig = (params = {}) =>
+  get(`${V1}/consult/config`, params).then(extractItem)
 
 // ==================== 动态风险揭示 ====================
 export const getRiskDisclosure = (productId: number, params?: any) =>

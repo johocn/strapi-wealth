@@ -301,7 +301,6 @@ const rows: Row[] = [
   { key: 'maxDrawdown', label: '最大回撤', direction: 'low' },
   { key: 'volatility', label: '波动率', direction: 'low' },
   { key: 'calmar', label: 'Calmar', direction: 'high' },
-  { key: 'peerRankPercentile', label: '同类排名', direction: 'low' },
   { key: 'latestNav', label: '最新净值' }
 ]
 
@@ -320,8 +319,6 @@ function fieldValue(row: Row, p: any): number | string | null {
       return p.riskMetric?.volatility ?? null
     case 'calmar':
       return p.riskMetric?.calmarRatio ?? null
-    case 'peerRankPercentile':
-      return p.riskMetric?.rankPercentile ?? null
     case 'latestNav':
       return p.latestNav?.unitNav ?? null
     default:
@@ -335,7 +332,6 @@ function cellText(row: Row, p: any): string {
   if (typeof v === 'number') {
     if (row.key === 'calmar') return v.toFixed(2)
     if (row.key === 'latestNav') return v.toFixed(4)
-    if (row.key === 'peerRankPercentile') return '前 ' + formatPercent(v)
     return formatPercent(v)
   }
   return String(v)

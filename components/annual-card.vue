@@ -8,9 +8,6 @@
     <view class="card-tags">
       <text class="tag type">{{ getTypeLabel(product.productType) }}</text>
       <text class="tag company" v-if="product.company?.name">{{ product.company.name }}</text>
-      <text class="tag rank" v-if="product.peerRankPercentile !== undefined && product.peerRankPercentile !== null">
-        同类前 {{ formatPercent(product.peerRankPercentile) }}
-      </text>
     </view>
 
     <view v-if="product.score" class="card-score">
@@ -79,7 +76,6 @@ function handleClick() {
 .tag { font-size: 20rpx; padding: 4rpx 10rpx; border-radius: 4rpx; }
 .tag.type { background: #f0f4ff; color: #667eea; }
 .tag.company { background: #f5f5f5; color: #999; }
-.tag.rank { background: #fff7e6; color: #fa8c16; }
 
 .card-score { margin-bottom: 12rpx; }
 

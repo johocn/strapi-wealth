@@ -1384,18 +1384,18 @@ page { background: #f5f5f5; }
 }
 .popup-title {
   font-size: 34rpx; font-weight: bold; color: #333;
-  text-align: center; margin-bottom: 16rpx;
+  text-align: center; margin-bottom: 20rpx;
 }
 .popup-product-name {
   font-size: 26rpx; color: #667eea; text-align: center;
-  margin-bottom: 24rpx; padding: 12rpx 0;
+  margin-bottom: 28rpx; padding: 12rpx 0;
   background: #f0f4ff; border-radius: 8rpx;
 }
 .popup-field {
-  margin-bottom: 28rpx;
+  margin-bottom: 32rpx;
 }
 .popup-label {
-  font-size: 26rpx; color: #666; display: block; line-height: 1.4; margin-bottom: 14rpx;
+  font-size: 26rpx; color: #666; display: block; line-height: 1.4; margin-bottom: 16rpx;
 }
 .required { color: #f5222d; }
 .popup-input {
@@ -1417,7 +1417,7 @@ page { background: #f5f5f5; }
 .popup-textarea:focus { border-color: #667eea; background: #fff; }
 /* 咨询方式选择 */
 .channel-tabs {
-  display: flex; gap: 16rpx;
+  display: flex; gap: 16rpx; margin-bottom: 16rpx;
 }
 .channel-tab {
   flex: 1; text-align: center; font-size: 26rpx;
@@ -1431,7 +1431,7 @@ page { background: #f5f5f5; }
 }
 /* 咨询渠道 Tab 切换 */
 .popup-tabs {
-  display: flex; gap: 16rpx; margin-bottom: 24rpx;
+  display: flex; gap: 16rpx; margin-bottom: 28rpx;
 }
 .popup-tab {
   flex: 1; text-align: center; font-size: 26rpx;
@@ -1447,14 +1447,14 @@ page { background: #f5f5f5; }
 .wechat-tip {
   font-size: 24rpx; color: #999; margin-bottom: 20rpx;
 }
-.wechat-servicer { margin-bottom: 24rpx; }
+.wechat-servicer { margin-bottom: 28rpx; }
 .servicer-line { display: flex; align-items: center; margin-bottom: 8rpx; }
 .servicer-name { font-size: 30rpx; font-weight: 600; color: #333; margin-right: 16rpx; }
 .servicer-branch { font-size: 26rpx; color: #888; }
 .servicer-phones { display: flex; flex-wrap: wrap; gap: 16rpx; }
 .servicer-phone { font-size: 26rpx; color: #2b6de8; text-decoration: underline; }
 .wechat-qr-row {
-  display: flex; gap: 20rpx;
+  display: flex; gap: 20rpx; margin-bottom: 28rpx;
 }
 .wechat-qr-item {
   flex: 1; text-align: center;
@@ -1486,7 +1486,7 @@ page { background: #f5f5f5; }
   border: 1px solid #eee;
   border-radius: 12px;
   padding: 12px;
-  margin-bottom: 12px;
+  margin-bottom: 28rpx;
 }
 .servicer-call-info {
   display: flex;
@@ -1521,7 +1521,7 @@ page { background: #f5f5f5; }
   border: 1px solid #eee;
   border-radius: 12px;
   padding: 12px;
-  margin-bottom: 8px;
+  margin-bottom: 16rpx;
 }
 .plan-option.active {
   border-color: #667eea;
@@ -1555,8 +1555,8 @@ page { background: #f5f5f5; }
 }
 .preset-names {
   display: flex;
-  gap: 8px;
-  margin-bottom: 8px;
+  gap: 16rpx;
+  margin-bottom: 16rpx;
 }
 .preset-name {
   border: 1px solid #eee;
@@ -1573,11 +1573,11 @@ page { background: #f5f5f5; }
 .popup-divider {
   height: 1px;
   background: #f0f0f0;
-  margin: 4px 0 12px;
+  margin: 8rpx 0 24rpx;
 }
 /* 弹窗操作按钮 */
 .popup-actions {
-  display: flex; gap: 20rpx; margin-top: 12rpx;
+  display: flex; gap: 20rpx; margin-top: 32rpx;
 }
 .popup-btn-cancel {
   flex: 1; text-align: center; font-size: 28rpx; font-weight: bold;

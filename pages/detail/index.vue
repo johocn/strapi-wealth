@@ -39,6 +39,13 @@
           <text class="score-help" @click="showScoreExplain = true">评分说明 ›</text>
         </view>
       </view>
+      <!-- 评分数据积累中（净值样本不足，无法评分） -->
+      <view v-else class="card score-section">
+        <view class="score-header">
+          <text class="section-title">综合评分</text>
+        </view>
+        <view class="score-accum-tip">数据积累中，达到 30 天净值历史后自动展示评分</view>
+      </view>
 
       <!-- 动态风险揭示 -->
       <view v-if="riskDisclosures.length > 0" class="card risk-disclosure-section">
@@ -1314,6 +1321,12 @@ page { background: #f5f5f5; }
 
 /* 评分区域 */
 .score-section { padding: 24rpx; }
+.score-accum-tip {
+  padding: 40rpx 0 24rpx;
+  text-align: center;
+  font-size: 26rpx;
+  color: #999;
+}
 .score-header {
   display: flex; justify-content: space-between; align-items: center;
   margin-bottom: 12rpx;

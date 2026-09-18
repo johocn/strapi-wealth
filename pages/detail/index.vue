@@ -1375,6 +1375,7 @@ page { background: #f5f5f5; }
   border-radius: 24rpx 24rpx 0 0;
   padding: 32rpx 30rpx calc(32rpx + env(safe-area-inset-bottom));
   box-sizing: border-box;
+  max-height: 85vh; overflow-y: auto;
   animation: popup-slide-up 0.25s ease-out;
 }
 @keyframes popup-slide-up {
@@ -1391,23 +1392,26 @@ page { background: #f5f5f5; }
   background: #f0f4ff; border-radius: 8rpx;
 }
 .popup-field {
-  margin-bottom: 24rpx;
+  margin-bottom: 28rpx;
 }
 .popup-label {
-  font-size: 26rpx; color: #666; display: block; margin-bottom: 10rpx;
+  font-size: 26rpx; color: #666; display: block; line-height: 1.4; margin-bottom: 14rpx;
 }
 .required { color: #f5222d; }
 .popup-input {
   width: 100%; box-sizing: border-box;
   background: #f5f5f5; border-radius: 8rpx;
-  padding: 20rpx 24rpx; font-size: 28rpx; color: #333;
+  padding: 0 24rpx; font-size: 28rpx; color: #333;
+  height: 80rpx; line-height: 80rpx;
   border: 1rpx solid transparent;
 }
 .popup-input:focus { border-color: #667eea; background: #fff; }
 .popup-textarea {
-  width: 100%; box-sizing: border-box; min-height: 120rpx;
+  width: 100%; box-sizing: border-box;
+  height: 160rpx;
   background: #f5f5f5; border-radius: 8rpx;
-  padding: 20rpx 24rpx; font-size: 28rpx; color: #333;
+  padding: 16rpx 24rpx; font-size: 28rpx; color: #333;
+  line-height: 1.5;
   border: 1rpx solid transparent;
 }
 .popup-textarea:focus { border-color: #667eea; background: #fff; }

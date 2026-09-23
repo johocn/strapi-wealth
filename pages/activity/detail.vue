@@ -71,6 +71,9 @@
           <PromoImages v-else-if="m.type === 'images'" :activity="activity" :config="m.config" />
           <PromoFaq v-else-if="m.type === 'faq'" :activity="activity" :config="m.config" />
           <PromoCustom v-else-if="m.type === 'custom'" :activity="activity" :config="m.config" />
+          <PromoGoods v-else-if="m.type === 'goods'" :activity="activity" :config="m.config" />
+          <PromoPurpose v-else-if="m.type === 'purpose'" :activity="activity" :config="m.config" />
+          <PromoNotice v-else-if="m.type === 'notice'" :activity="activity" :config="m.config" />
           <PromoRewards v-else-if="m.type === 'rewards'" :rewards="activity.rewardConfig" />
           <PromoContact
             v-else-if="m.type === 'contact'"
@@ -642,6 +645,9 @@ import PromoContact from '../../components/promo/promo-contact.vue'
 import PromoMessage from '../../components/promo/promo-message.vue'
 import PromoCustomPage from '../../components/promo/promo-custom-page.vue'
 import FloatContact from '../../components/promo/float-contact.vue'
+import PromoGoods from '../../components/promo/promo-goods.vue'
+import PromoPurpose from '../../components/promo/promo-purpose.vue'
+import PromoNotice from '../../components/promo/promo-notice.vue'
 import MessageDialog from '../../components/promo/message-dialog.vue'
 import QrContactPopup from '../../components/promo/qr-contact-popup.vue'
 
@@ -1443,6 +1449,7 @@ const usedCapacity = computed(() => activity.value?.usedCapacity ?? 0)
 const PROMO_TYPE_SET = new Set([
   'cover', 'info', 'rich', 'highlights', 'speakers', 'agenda', 'images', 'faq', 'custom',
   'rewards', 'contact', 'message', 'floatContact',
+  'goods', 'purpose', 'notice',
 ])
 const modules = computed(() =>
   (Array.isArray(activity.value?.promoModules) ? activity.value.promoModules : [])

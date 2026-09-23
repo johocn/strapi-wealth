@@ -5,6 +5,9 @@
       <text>分享海报</text>
     </view>
 
+    <!-- 稀缺转化条（促销页顶部，名额已满或活动结束后自动隐藏） -->
+    <PromoScarcity v-if="page?.activity" :activity="page.activity" />
+
     <!-- 模块分发 -->
     <block v-if="page?.activity && modules.length">
       <block v-for="m in modules" :key="m.sort">
@@ -27,6 +30,9 @@
         <PromoMessage v-else-if="m.type === 'message'" :messages="messages" :config="m.config" @open-message="openMessagePanel" />
         <PromoFaq v-else-if="m.type === 'faq'" :activity="page.activity" :config="m.config" />
         <PromoCustom v-else-if="m.type === 'custom'" :activity="page.activity" :config="m.config" />
+        <PromoGoods v-else-if="m.type === 'goods'" :activity="page.activity" :config="m.config" />
+        <PromoPurpose v-else-if="m.type === 'purpose'" :activity="page.activity" :config="m.config" />
+        <PromoNotice v-else-if="m.type === 'notice'" :activity="page.activity" :config="m.config" />
         <FloatContact
           v-else-if="m.type === 'floatContact'"
           :contact="page.contact"
@@ -270,6 +276,10 @@ import PromoMessage from '../../components/promo/promo-message.vue'
 import PromoFaq from '../../components/promo/promo-faq.vue'
 import PromoCustom from '../../components/promo/promo-custom.vue'
 import FloatContact from '../../components/promo/float-contact.vue'
+import PromoGoods from '../../components/promo/promo-goods.vue'
+import PromoPurpose from '../../components/promo/promo-purpose.vue'
+import PromoNotice from '../../components/promo/promo-notice.vue'
+import PromoScarcity from '../../components/promo/promo-scarcity.vue'
 import QrContactPopup from '../../components/promo/qr-contact-popup.vue'
 import { setupPageShare } from '../../utils/share'
 
@@ -288,6 +298,9 @@ const PROMO_TYPE_SET = new Set([
   'faq',
   'custom',
   'floatContact',
+  'goods',
+  'purpose',
+  'notice',
 ])
 
 // 报名引导存储键（与 detail.vue 一致，微信授权跳转回调后恢复引导进度）

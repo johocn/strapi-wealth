@@ -20,6 +20,10 @@
         <text v-if="g.limitPerPerson" class="goods-limit">每人限购 {{ g.limitPerPerson }} 件</text>
       </view>
     </view>
+    <view class="goods-verify">
+      <text class="goods-verify-title">到店核销</text>
+      <text class="goods-verify-desc">报名成功后到店出示报名签到码，由店员扫码核销并享受促销价。</text>
+    </view>
     <text class="goods-notice">{{ notice }}</text>
   </view>
 </template>
@@ -119,6 +123,28 @@ const price = (g: any) => goodsPriceText(g)
   margin-top: 8rpx;
   font-size: 22rpx;
   color: var(--c-accent);
+}
+
+.goods-verify {
+  margin-top: 20rpx;
+  padding: 16rpx 20rpx;
+  border-radius: 12rpx;
+  background: var(--c-bg);
+}
+
+.goods-verify-title {
+  display: block;
+  font-size: 26rpx;
+  font-weight: bold;
+  color: var(--c-primary);
+  margin-bottom: 6rpx;
+}
+
+.goods-verify-desc {
+  display: block;
+  font-size: 24rpx;
+  color: var(--c-text-dim);
+  line-height: 1.6;
 }
 
 .goods-notice {

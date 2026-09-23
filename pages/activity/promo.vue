@@ -282,6 +282,7 @@ import PromoNotice from '../../components/promo/promo-notice.vue'
 import PromoScarcity from '../../components/promo/promo-scarcity.vue'
 import QrContactPopup from '../../components/promo/qr-contact-popup.vue'
 import { setupPageShare } from '../../utils/share'
+import { normalizeGoodsList } from '../../utils/promo-goods'
 
 /** 可渲染模块类型白名单（未知 type 不渲染） */
 const PROMO_TYPE_SET = new Set([
@@ -796,6 +797,15 @@ async function sendMessage() {
 
 // ===== 分享海报 =====
 const showSharePoster = ref(false)
+// 促销商品摘要（海报副文案用）：最多取前 3 件，形如「A ¥59 / B ¥39 / C ¥19」
+const goodsSummary = computed(() => {
+  const list = normalizeGoodsList(activity.value?.goodsList).slice(0, 3)
+  return list
+    .map(g => `${g.name}${g.promoPrice == null ? '' : ` ¥${g.promoPrice}`}`)
+    .filter(s => s.trim())
+    .join(' / ')
+})
+
 const posterConfig = computed(() => ({
   templateCode: 'activity_share',
   title: activity.value?.title,
@@ -804,6 +814,7 @@ const posterConfig = computed(() => ({
   variables: {
     title: activity.value?.title || '',
     desc: activity.value?.description || '',
+    summary: goodsSummary.value,
   },
 }))
 

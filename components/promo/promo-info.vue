@@ -13,6 +13,9 @@
       <view class="info-body">
         <text class="info-label">活动地点</text>
         <text class="info-value">{{ venueName }}</text>
+        <view class="nav-btn" :class="{ 'nav-btn--off': !canNavigate }" @click="openLocation">
+          <text>📍 一键导航</text>
+        </view>
       </view>
     </view>
     <view v-if="quotaText" class="info-item">
@@ -77,6 +80,29 @@ const statusBadge = computed(() => {
   if (s === 'draft') return '未发布'
   return ''
 })
+
+// 一键导航：仅在 lat/lng 有效（非空且非 0）时可用
+const canNavigate = computed(() => {
+  const a = props.activity
+  const lat = Number(a?.lat)
+  const lng = Number(a?.lng)
+  return Number.isFinite(lat) && Number.isFinite(lng) && lat !== 0 && lng !== 0
+})
+
+function openLocation() {
+  const a = props.activity
+  if (!canNavigate.value) {
+    uni.showToast({ title: '场地暂未设置坐标', icon: 'none' })
+    return
+  }
+  uni.openLocation({
+    latitude: Number(a.lat),
+    longitude: Number(a.lng),
+    name: a.venue?.name || a.venueName || '活动场地',
+    address: a.venue?.address || a.venueName || '',
+    scale: 16,
+  })
+}
 </script>
 
 <style lang="scss" scoped>
@@ -93,6 +119,20 @@ const statusBadge = computed(() => {
   border-radius: 8rpx;
   background: var(--c-primary);
   color: #fff;
+}
+
+.nav-btn {
+  display: inline-block;
+  margin-top: 12rpx;
+  padding: 8rpx 24rpx;
+  font-size: 24rpx;
+  border-radius: 30rpx;
+  background: var(--c-primary);
+  color: #fff;
+}
+
+.nav-btn--off {
+  opacity: 0.5;
 }
 
 .info-item {

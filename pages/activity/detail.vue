@@ -43,6 +43,13 @@
           <text class="desc-title">活动介绍</text>
           <text class="desc-content">{{ activity.description }}</text>
         </view>
+
+        <view v-if="activity.pickupLocation" class="desc">
+          <text class="desc-title">集合点</text>
+          <text class="pickup-name">{{ activity.pickupLocation.name }}</text>
+          <text v-if="activity.pickupLocation.address" class="desc-content">{{ activity.pickupLocation.address }}</text>
+          <text v-if="activity.pickupLocation.description" class="desc-content">{{ activity.pickupLocation.description }}</text>
+        </view>
       </view>
 
       <!-- 宣传文案：完全定制优先，否则回退运营端 promoModules 模块组合 -->
@@ -2294,6 +2301,15 @@ onUnmounted(() => {
   line-height: 1.7;
   white-space: pre-wrap;
   word-break: break-all;
+}
+
+.pickup-name {
+  display: block;
+  font-size: 28rpx;
+  font-weight: 600;
+  color: var(--c-text, #333);
+  line-height: 1.5;
+  margin-bottom: 6rpx;
 }
 
 .qr-card {

@@ -1223,6 +1223,16 @@ export async function signupActivity(
 }
 
 /**
+ * 签到场核销票据（需登录）
+ * 二维码内容为 atk:{token}，票据 5 分钟有效，过期需重新签发
+ * @returns { token: string, expiresAt: string }
+ */
+export async function getActivityCheckinTicket(documentId: string) {
+  const res = await request(`/zhao-point/v1/my/activity/${documentId}/checkin-ticket`, { method: 'POST' })
+  return res?.data ?? res
+}
+
+/**
  * 补填问卷（需登录，signupId 来自报名响应）
  * @param type pre=活动前问卷（报名后可填，驱动 survey 解锁/积分，默认）；post=活动后问卷（需签到且活动结束后，仅记录反馈）
  * @returns { ok, unlockInfo, newlyUnlocked } 已解锁的新权益列表

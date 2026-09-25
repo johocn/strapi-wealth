@@ -191,13 +191,17 @@
         </view>
       </view>
 
-      <!-- 报名成功后的到场二维码（worker_scan 模式） -->
+      <!-- 报名成功后的到场二维码（worker_scan 模式，服务端签发 5 分钟有效） -->
       <view v-if="signedUp && canWorkerScan" class="card qr-card">
         <text class="qr-title">到场二维码</text>
         <text class="qr-tip">请向现场工作人员出示此二维码核销</text>
         <view class="qr-box">
           <image v-if="qrcodeUrl" :src="qrcodeUrl" class="qr-img" mode="aspectFit" />
-          <text v-else class="qr-placeholder">二维码生成中...</text>
+          <text v-else class="qr-placeholder">{{ ticketLoading ? '二维码生成中...' : '点击下方按钮获取核销码' }}</text>
+        </view>
+        <text v-if="qrcodeUrl" class="qr-countdown">有效期剩余 {{ ticketLeftText }}</text>
+        <view class="qr-refresh" @click="generateQrcode">
+          <text>{{ ticketLoading ? '刷新中...' : '刷新' }}</text>
         </view>
       </view>
 
@@ -596,10 +600,11 @@
 
 <script setup lang="ts">
 import { ref, computed, nextTick, watch, onMounted, onUnmounted } from 'vue'
-import { onShow, onPageScroll } from '@dcloudio/uni-app'
+import { onShow, onUnload, onPageScroll } from '@dcloudio/uni-app'
 import {
   getActivityDetail,
   signupActivity,
+  getActivityCheckinTicket,
   fillQuestionnaire,
   unlockCheck,
   getActivityFollowQrcode,
@@ -673,6 +678,9 @@ const isFull = computed(() => {
   return cap > 0 && (activity.value?.usedCapacity ?? 0) >= cap
 })
 const qrcodeUrl = ref('')
+const ticketLeftText = ref('')      // 票据剩余有效期文案，如 "4:38"
+const ticketLoading = ref(false)
+let ticketTimer: any = null
 const showSharePoster = ref(false)
 // 分享领分状态：成功判定=好友点击、冷却从首击起算、按活动维度（activity:{documentId}）核算；置灰时提示。
 // 主领取走「分享得积分」入口的 ShareGuide 弹窗；分享海报关闭时保留原有自动领分行为。
@@ -1649,16 +1657,34 @@ async function resolveUserId(): Promise<number> {
   return Number.isInteger(idNum) ? idNum : NaN
 }
 
-/** 生成到场二维码（内容格式 activity:{activityId}:{userId}） */
-async function generateQrcode() {
-  const userId = await resolveUserId()
-  if (!Number.isInteger(userId)) {
-    uni.showToast({ title: '无法获取用户信息，二维码生成失败', icon: 'none' })
-    return
+/** 清理倒计时 */
+function stopTicketCountdown() {
+  if (ticketTimer) { clearInterval(ticketTimer); ticketTimer = null }
+  ticketLeftText.value = ''
+}
+
+/** 启动 5 分钟倒计时，归零后清空二维码并提示刷新 */
+function startTicketCountdown(expiresAt: number) {
+  stopTicketCountdown()
+  const tick = () => {
+    const left = expiresAt - Date.now()
+    if (left <= 0) {
+      stopTicketCountdown()
+      qrcodeUrl.value = ''
+      uni.showToast({ title: '核销码已过期，请点击刷新', icon: 'none' })
+      return
+    }
+    const m = Math.floor(left / 60000)
+    const s = Math.floor((left % 60000) / 1000)
+    ticketLeftText.value = `${m}:${String(s).padStart(2, '0')}`
   }
-  const code = `activity:${id}:${userId}`
+  tick()
+  ticketTimer = setInterval(tick, 1000)
+}
+
+/** H5 端用 canvas 把票据文本渲染成二维码图片 */
+function renderTicketQrcode(code: string) {
   // #ifdef H5
-  // 在内存中创建 canvas 生成二维码
   const canvas = document.createElement('canvas')
   canvas.width = 200
   canvas.height = 200
@@ -1667,17 +1693,13 @@ async function generateQrcode() {
     console.error('无法获取canvas上下文')
     return
   }
-
   const qr = new UQRCode()
   qr.data = code
   qr.size = 200
   qr.make()
-
   const drawModules = qr.getDrawModules()
-
   ctx.fillStyle = '#ffffff'
   ctx.fillRect(0, 0, 200, 200)
-
   for (let i = 0; i < drawModules.length; i++) {
     const drawModule = drawModules[i]
     if (drawModule.type === 'tile') {
@@ -1685,12 +1707,32 @@ async function generateQrcode() {
       ctx.fillRect(drawModule.x, drawModule.y, drawModule.width, drawModule.height)
     }
   }
-
   qrcodeUrl.value = canvas.toDataURL('image/png')
   // #endif
   // #ifndef H5
   uni.showToast({ title: '请在H5端查看二维码', icon: 'none' })
   // #endif
+}
+
+/** 拉取服务端签发的票据并渲染二维码（内容 atk:{token}，5 分钟有效） */
+async function generateQrcode() {
+  if (ticketLoading.value) return
+  ticketLoading.value = true
+  try {
+    const ticket = await getActivityCheckinTicket(id)
+    const token = ticket?.token
+    if (!token) throw new Error('核销码签发失败，请稍后重试')
+    const expiresAt = new Date(ticket.expiresAt).getTime()
+    if (!Number.isFinite(expiresAt)) throw new Error('核销码签发失败，请稍后重试')
+    renderTicketQrcode(`atk:${token}`)
+    startTicketCountdown(expiresAt)
+  } catch (e: any) {
+    stopTicketCountdown()
+    qrcodeUrl.value = ''
+    uni.showToast({ title: e?.message || '核销码获取失败，请稍后重试', icon: 'none' })
+  } finally {
+    ticketLoading.value = false
+  }
 }
 
 function toggleMulti(f: any, o: string) {
@@ -2086,6 +2128,8 @@ onShow(() => {
   }
 })
 
+onUnload(() => { stopTicketCountdown() })
+
 onUnmounted(() => {
   subscribeStopPolling()
   if (floatTimer) clearTimeout(floatTimer)
@@ -2303,6 +2347,9 @@ onUnmounted(() => {
   font-size: 24rpx;
   color: #999;
 }
+
+.qr-countdown { display: block; text-align: center; font-size: 24rpx; color: #999; margin-top: 8rpx; }
+.qr-refresh { margin: 16rpx auto 0; width: 200rpx; height: 64rpx; line-height: 64rpx; text-align: center; background: #07c160; color: #fff; border-radius: 32rpx; font-size: 26rpx; }
 
 .action-bar {
   position: fixed;

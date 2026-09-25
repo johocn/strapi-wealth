@@ -612,7 +612,6 @@ import {
   checkinActivity,
   myActivities,
   submitActivityReview,
-  getUserInfo,
   getActivityFee,
   getActivityReviews,
   getMyActivityLearning,
@@ -624,7 +623,7 @@ import {
   sendActivityMessage,
   listMyActivityMessages,
 } from '../../services/api'
-import { getToken, getUser } from '../../utils/storage'
+import { getToken } from '../../utils/storage'
 import { isWechatBrowser, resolveMediaUrl } from '../../utils/env'
 import { setupPageShare } from '../../utils/share'
 import { redirectToWechatAuth, getCurrentPagePath } from '../../utils/wx-h5-login'
@@ -1644,17 +1643,6 @@ async function loadFee() {
   } catch (e) {
     console.warn('加载活动费用失败，使用默认值', e)
   }
-}
-
-/** 解析用户数字 ID：优先取本地，若非整数则走接口 */
-async function resolveUserId(): Promise<number> {
-  const user = getUser()
-  const storedId = user?.id
-  const n = typeof storedId === 'number' ? storedId : Number(storedId)
-  if (Number.isInteger(n)) return n
-  const info = await getUserInfo()
-  const idNum = typeof info?.id === 'number' ? info.id : Number(info?.id)
-  return Number.isInteger(idNum) ? idNum : NaN
 }
 
 /** 清理倒计时 */

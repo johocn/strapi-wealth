@@ -15,9 +15,18 @@ const authPages = [
   '/pages/profile/profile'
 ]
 
+// 无需登录即可访问的公开页（如活动促销/分享落地页）
+// 页面数据来自公开聚合接口，访客直接打开分享链接时应绕过 SSO 强制登录守卫
+const publicPages = ['/pages/activity/promo']
+
 // 检查页面是否需要登录
 function isAuthPage(path: string): boolean {
   return authPages.some(page => path.includes(page))
+}
+
+// 检查页面是否可免登录访问
+function isPublicPage(path: string): boolean {
+  return publicPages.some(page => path.includes(page))
 }
 
 // 检查用户是否已登录
@@ -154,7 +163,9 @@ function isGuest(): boolean {
 // 导出
 export {
   authPages,
+  publicPages,
   isAuthPage,
+  isPublicPage,
   checkLogin,
   validateLogin,
   isGuest,

@@ -1,5 +1,5 @@
 <script>
-import { validateLogin, redirectToLogin, getCurrentPagePath, isAuthPage } from './utils/auth'
+import { validateLogin, redirectToLogin, getCurrentPagePath, isAuthPage, isPublicPage } from './utils/auth'
 import { handleInviteLink, reportShareVisitFromLaunch } from './utils/invite'
 import { fetchAuthConfig, getStoredAuthConfig } from './services/auth-config'
 import { getUser } from './utils/storage'
@@ -122,6 +122,8 @@ export default {
       const onAuthCallback = currentPath.startsWith('/pages/auth-callback/auth-callback')
       // 注册页/登录页：用户已主动进入登录注册流程，不自动跳（由页面自身 onMounted 处理）
       const onAuthPage = currentPath.startsWith('/pages/register/register') || currentPath.startsWith('/pages/login/login')
+      // 公开页（如活动促销/分享落地页）：访客免登录访问，不自动跳 SSO
+      const onPublicPage = isPublicPage(currentPath)
 
       // 已登录：初始化 JS-SDK + 默认分享
       if (token) {
@@ -137,7 +139,7 @@ export default {
       // 关键排除页面：auth-callback（SSO 回调用，自己保存 token）、login/register（用户主动进入登录流程）
       // 否则 SSO 302 回跳 auth-callback?token=xxx 触发整页刷新再次 onLaunch 时，
       // token 尚未写入 storage，会再次被轰回 SSO，导致"换微信登录后反复登录、回不到 v.joho.cn"死循环
-      if (!hasCode && !onAuthCallback && !onAuthPage && shouldUseSso(authConfig)) {
+      if (!hasCode && !onAuthCallback && !onAuthPage && !onPublicPage && shouldUseSso(authConfig)) {
         const ssoUrl = buildSsoRedirectUrl(authConfig)
         if (ssoUrl) {
           console.log('[App][debug] 微信分支 SSO 自动跳转', ssoUrl)
@@ -181,9 +183,11 @@ export default {
       const currentPath = window.location.hash.replace(/^#/, '').split('?')[0] || '/pages/index/index'
       const isCallbackPage = currentPath.startsWith('/pages/auth-callback/auth-callback')
       const isAuthPage = currentPath.startsWith('/pages/login/login') || currentPath.startsWith('/pages/register/register')
+      // 公开页（如活动促销/分享落地页）：访客免登录访问，不自动跳 SSO
+      const onPublicPage = isPublicPage(currentPath)
       console.log('[App][debug] 非微信环境 SSO 检查, token=', existingToken ? 'exists' : 'none', 'path=', currentPath, 'isCallback=', isCallbackPage)
-      // 已登录、或在回调页/登录注册页时，不自动跳 SSO
-      if (!existingToken && !isCallbackPage && !isAuthPage && shouldUseSso(authConfig)) {
+      // 已登录、或在回调页/登录注册页/公开页时，不自动跳 SSO
+      if (!existingToken && !isCallbackPage && !isAuthPage && !onPublicPage && shouldUseSso(authConfig)) {
         const ssoUrl = buildSsoRedirectUrl(authConfig)
         if (ssoUrl) {
           window.location.href = ssoUrl

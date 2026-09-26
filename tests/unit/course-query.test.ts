@@ -11,7 +11,8 @@ describe('course-query', () => {
   describe('SORT_MAP', () => {
     it('contains all 6 sort keys', () => {
       expect(Object.keys(SORT_MAP)).toHaveLength(6)
-      expect(SORT_MAP.default).toContain('isFeatured:desc')
+      // 默认排序：置顶(isTop)优先 → 手动排序位(sort) → 发布时间
+      expect(SORT_MAP.default).toContain('isTop:desc')
       expect(SORT_MAP.default).toContain('publishDate:asc')
       expect(SORT_MAP.newest).toBe('publishDate:desc,createdAt:desc')
       expect(SORT_MAP.hot).toBe('studentCount:desc')

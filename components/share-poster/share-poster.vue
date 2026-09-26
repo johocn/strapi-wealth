@@ -1,39 +1,32 @@
 <template>
   <view v-if="visible" class="poster-overlay" @click.self="close">
-    <view class="poster-container">
-      <view class="poster-header">
-        <text class="poster-title">分享海报</text>
-        <view class="poster-close" @click="close">×</view>
+    <view class="poster-stage">
+      <!-- 上：海报图片（等比缩放居中，长按可保存） -->
+      <view
+        v-if="generated"
+        class="poster-image-wrap"
+        :style="posterDisplayW ? { width: posterDisplayW + 'px', height: posterDisplayH + 'px' } : {}"
+      >
+        <!-- #ifndef H5 -->
+        <canvas 
+          canvas-id="sharePosterCanvas"
+          :style="{ width: canvasWidth + 'rpx', height: canvasHeight + 'rpx' }"
+          class="poster-canvas"
+        />
+        <!-- #endif -->
+        <!-- #ifdef H5 -->
+        <image :src="posterImage" class="poster-img" :show-menu-by-longpress="true" />
+        <!-- #endif -->
+        <view class="poster-close-float" @click.stop="close">×</view>
       </view>
-      <scroll-view scroll-y class="poster-body">
-        <view class="poster-preview">
-          <!-- #ifndef H5 -->
-          <!-- 非H5（小程序/App）：使用画布渲染 -->
-          <canvas 
-            canvas-id="sharePosterCanvas"
-            :style="{ width: canvasWidth + 'rpx', height: canvasHeight + 'rpx' }"
-            class="poster-canvas"
-          />
-          <!-- #endif -->
-          <!-- H5：离屏画布生成图片后展示，适配手机宽度并支持长按保存 -->
-          <image
-            v-if="posterImage"
-            :src="posterImage"
-            :style="{ width: posterDisplayW + 'px', height: posterDisplayH + 'px', transform: `translateX(-${posterShift}px)` }"
-            class="poster-img"
-            :show-menu-by-longpress="true"
-          />
-          <view v-if="!generated" class="poster-loading">
-            <view class="loading-spinner" />
-            <text class="loading-text">正在生成海报...</text>
-          </view>
-        </view>
-      </scroll-view>
-      <view class="poster-footer">
-        <view class="poster-tip">
-          <text v-if="isWechat">长按图片即可保存到手机相册</text>
-          <text v-else>点击下方「保存图片」下载海报</text>
-        </view>
+
+      <view v-else class="poster-loading">
+        <view class="loading-spinner" />
+        <text class="loading-text">正在生成海报...</text>
+      </view>
+
+      <!-- 下：普通浏览器显示保存按钮；微信内不渲染任何节点（长按图片保存） -->
+      <view v-if="!isWechat" class="poster-actions">
         <view class="save-btn" @click="savePoster">保存图片</view>
       </view>
     </view>
@@ -80,7 +73,6 @@ const generated = ref(false)
 const posterImage = ref('')
 const posterDisplayW = ref(0)
 const posterDisplayH = ref(0)
-const posterShift = ref(0)
 const posterFilename = ref('分享海报.png')
 // 是否在微信内：微信内长按图片保存，浏览器点按钮下载
 const isWechat = (() => {
@@ -226,19 +218,13 @@ const drawPoster = async () => {
   if (!ctx) return
   await renderer.render(ctx, template, renderData.elements, true)
   posterImage.value = offCanvas.toDataURL('image/png')
-  // 计算显示尺寸：等比缩放，完整放入分享区域（不溢出、不裁剪）
-  // 容器宽 650rpx，左右 padding 各 30rpx → 内容宽 590rpx；max-height 80vh 减去头部/保存按钮为可用高度
-  const areaW = (590 * window.innerWidth) / 750
-  const areaH = Math.max(window.innerHeight * 0.8 - 190, 260)
+  // 显示尺寸：左右各留 24rpx，等比缩放居中（不再做左移补偿）
+  const sideGap = (48 * window.innerWidth) / 750
+  const areaW = window.innerWidth - sideGap * 2
+  const areaH = window.innerHeight * 0.88
   const scale = Math.min(areaW / width, areaH / height)
   posterDisplayW.value = Math.round(width * scale)
   posterDisplayH.value = Math.round(height * scale)
-  // 图片在分享海报容器（650rpx）内居中，左右各留白。
-  // 容器宽 650rpx 才是分享海报的真实宽度，用它与图片宽计算右侧留白，再左移一半，
-  // 让图片明显靠左、减少左侧空间；img 宽+左移量 <= 容器宽，保证不超出右侧。
-  const containerW = (650 * window.innerWidth) / 750
-  const leftGap = Math.max(containerW - posterDisplayW.value, 0)
-  posterShift.value = Math.round(leftGap / 2)
   // 有意义的下载文件名
   const now = new Date()
   const pad = (n: number) => String(n).padStart(2, '0')
@@ -336,64 +322,47 @@ onMounted(() => {
   justify-content: center;
 }
 
-.poster-container {
-  width: 650rpx;
-  max-height: 80vh;
-  background: #ffffff;
-  border-radius: 20rpx;
+/* 无外框：图片 + 按环境渲染的底部，纵向堆叠居中 */
+.poster-stage {
   display: flex;
   flex-direction: column;
-}
-
-.poster-header {
-  padding: 30rpx;
-  border-bottom: 1rpx solid #eee;
-  display: flex;
   align-items: center;
-  justify-content: space-between;
 }
 
-.poster-title {
-  font-size: 32rpx;
-  font-weight: bold;
-  color: #333;
-}
-
-.poster-close {
-  font-size: 48rpx;
-  color: #999;
-  line-height: 1;
-}
-
-.poster-body {
-  flex: 1;
-  padding: 30rpx;
-}
-
-.poster-preview {
-  display: flex;
-  align-items: center;
-  justify-content: center;
+.poster-image-wrap {
   position: relative;
+}
+
+/* H5：展示的图片，等比缩放居中，支持长按保存 */
+.poster-img {
+  width: 100%;
+  height: 100%;
+  display: block;
+  border-radius: 12rpx;
 }
 
 .poster-canvas {
   background: #fff;
   border-radius: 12rpx;
-  box-shadow: 0 4rpx 20rpx rgba(0, 0, 0, 0.1);
 }
 
-/* H5：展示的图片，等比缩放完整放入分享区域，支持长按保存 */
-.poster-img {
-  border-radius: 12rpx;
-  box-shadow: 0 4rpx 20rpx rgba(0, 0, 0, 0.1);
+/* 悬浮关闭：挂在图片层，非外框 */
+.poster-close-float {
+  position: absolute;
+  top: -14rpx;
+  right: -14rpx;
+  width: 64rpx;
+  height: 64rpx;
+  border-radius: 50%;
+  background: rgba(0, 0, 0, 0.45);
+  color: #fff;
+  font-size: 40rpx;
+  line-height: 60rpx;
+  text-align: center;
 }
 
 .poster-loading {
-  position: absolute;
-  top: 50%;
-  left: 50%;
-  transform: translate(-50%, -50%);
+  padding: 120rpx 0;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -418,17 +387,9 @@ onMounted(() => {
   color: #999;
 }
 
-.poster-footer {
-  padding: 30rpx;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 20rpx;
-}
-
-.poster-tip {
-  font-size: 24rpx;
-  color: #999;
+.poster-actions {
+  margin-top: 24rpx;
+  width: 100%;
 }
 
 .save-btn {

@@ -24,7 +24,11 @@
         </view>
         <view class="info-row">
           <text class="info-label">场地</text>
-          <text class="info-value">{{ activity.venue?.name || activity.venueName || '待定场地' }}</text>
+          <text
+            class="info-value"
+            :class="{ 'info-value--nav': canNavigateVenue }"
+            @click="openVenueLocation"
+          >{{ activity.venue?.name || activity.venueName || '待定场地' }}<text v-if="canNavigateVenue" class="nav-hint">📍导航</text></text>
         </view>
         <view v-if="activity.capacity" class="info-row">
           <text class="info-label">名额</text>
@@ -1909,6 +1913,31 @@ function getLocation(): Promise<{ latitude: number; longitude: number }> {
   })
 }
 
+// 场地导航：坐标优先取场地主档，回落活动自身经纬度（地理围栏配置）
+const venueCoord = computed(() => {
+  const a = activity.value
+  const lat = Number(a?.venue?.lat ?? a?.lat)
+  const lng = Number(a?.venue?.lng ?? a?.lng)
+  const valid = Number.isFinite(lat) && Number.isFinite(lng) && lat !== 0 && lng !== 0
+  return { lat, lng, valid }
+})
+const canNavigateVenue = computed(() => venueCoord.value.valid)
+
+function openVenueLocation() {
+  const c = venueCoord.value
+  if (!c.valid) {
+    uni.showToast({ title: '场地暂未设置坐标', icon: 'none' })
+    return
+  }
+  uni.openLocation({
+    latitude: c.lat,
+    longitude: c.lng,
+    name: activity.value?.venue?.name || activity.value?.venueName || '活动场地',
+    address: activity.value?.venueName || '',
+    scale: 16,
+  })
+}
+
 function handleCheckinResult(result: any) {
   if (result?.ok) {
     const point = result.point
@@ -2270,6 +2299,10 @@ onUnmounted(() => {
   color: var(--c-text, #333);
   line-height: 1.5;
 }
+
+/* 场地可导航：整行可点，弱化提示不抢视觉 */
+.info-value--nav { color: var(--c-primary, #667eea); }
+.nav-hint { margin-left: 10rpx; font-size: 22rpx; color: var(--c-primary, #667eea); }
 
 .desc {
   margin-top: 24rpx;

@@ -15,4 +15,10 @@ describe('promo-info 一键导航', () => {
     expect(src).toContain('场地暂未设置坐标')
     expect(src).toContain('canNavigate')
   })
+
+  it('坐标优先取场地主档，回落活动自身经纬度', () => {
+    expect(src).toContain('venueCoord')
+    expect(src).toContain('a?.venue?.lat ?? a?.lat')
+    expect(src).toContain('a?.venue?.lng ?? a?.lng')
+  })
 })

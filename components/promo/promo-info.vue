@@ -81,23 +81,30 @@ const statusBadge = computed(() => {
   return ''
 })
 
-// 一键导航：仅在 lat/lng 有效（非空且非 0）时可用
-const canNavigate = computed(() => {
+// 一键导航：坐标优先取场地主档，回落活动自身经纬度（地理围栏配置）；非空且非 0 才可用
+const venueCoord = computed(() => {
   const a = props.activity
-  const lat = Number(a?.lat)
-  const lng = Number(a?.lng)
-  return Number.isFinite(lat) && Number.isFinite(lng) && lat !== 0 && lng !== 0
+  const lat = Number(a?.venue?.lat ?? a?.lat)
+  const lng = Number(a?.venue?.lng ?? a?.lng)
+  return {
+    lat,
+    lng,
+    valid: Number.isFinite(lat) && Number.isFinite(lng) && lat !== 0 && lng !== 0,
+  }
 })
+
+const canNavigate = computed(() => venueCoord.value.valid)
 
 function openLocation() {
   const a = props.activity
-  if (!canNavigate.value) {
+  const c = venueCoord.value
+  if (!c.valid) {
     uni.showToast({ title: '场地暂未设置坐标', icon: 'none' })
     return
   }
   uni.openLocation({
-    latitude: Number(a.lat),
-    longitude: Number(a.lng),
+    latitude: c.lat,
+    longitude: c.lng,
     name: a.venue?.name || a.venueName || '活动场地',
     address: a.venue?.address || a.venueName || '',
     scale: 16,

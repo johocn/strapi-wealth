@@ -102,11 +102,21 @@ function openLocation() {
     uni.showToast({ title: '场地暂未设置坐标', icon: 'none' })
     return
   }
+  const name = a.venue?.name || a.venueName || '活动场地'
+  const address = a.venue?.address || a.venueName || ''
+  // #ifdef H5
+  // H5 端 uni.openLocation 依赖 map 组件，而本项目未配置 H5 地图 key（manifest.h5.map），
+  // 弹层里地图恒为空白；改为直接跳高德地图网页版（无需 key），微信内会引导唤起高德 App
+  window.location.href =
+    `https://uri.amap.com/marker?position=${c.lng},${c.lat}` +
+    `&name=${encodeURIComponent(name)}&coordinate=gaode&callnative=1`
+  return
+  // #endif
   uni.openLocation({
     latitude: c.lat,
     longitude: c.lng,
-    name: a.venue?.name || a.venueName || '活动场地',
-    address: a.venue?.address || a.venueName || '',
+    name,
+    address,
     scale: 16,
   })
 }

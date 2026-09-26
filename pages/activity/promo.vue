@@ -1,8 +1,10 @@
 <template>
   <view class="promo-page" :class="styleClass" :style="colorVars">
-    <!-- 分享海报入口（固定右上角） -->
-    <view v-if="page?.activity" class="promo-share-btn" @click="showSharePoster = true">
-      <text>分享海报</text>
+    <!-- 分享海报入口（页面顶部右侧，置于导航栏下方普通流内，避免被导航栏/倒计时条遮挡） -->
+    <view v-if="page?.activity" class="promo-share-bar">
+      <view class="promo-share-btn" @click="showSharePoster = true">
+        <text>分享海报</text>
+      </view>
     </view>
 
     <!-- 稀缺转化条（促销页顶部，名额已满或活动结束后自动隐藏） -->
@@ -807,26 +809,48 @@ async function sendMessage() {
 
 // ===== 分享海报 =====
 const showSharePoster = ref(false)
-// 促销商品摘要（海报副文案用）：最多取前 3 件，形如「A ¥59 / B ¥39 / C ¥19」
-const goodsSummary = computed(() => {
-  const list = normalizeGoodsList(activity.value?.goodsList).slice(0, 3)
-  return list
-    .map(g => `${g.name}${g.promoPrice == null ? '' : ` ¥${g.promoPrice}`}`)
-    .filter(s => s.trim())
-    .join(' / ')
+// 海报活动时间：由起止时间推导，形如「10.1—10.8 双节同庆」
+const posterTimeText = computed(() => {
+  const fmt = (iso?: string) => {
+    if (!iso) return ''
+    const d = new Date(iso)
+    if (isNaN(d.getTime())) return ''
+    return `${d.getMonth() + 1}.${d.getDate()}`
+  }
+  const start = fmt(activity.value?.startTime)
+  const end = fmt(activity.value?.endTime)
+  if (start && end) return `${start}—${end} 双节同庆`
+  return '双节同庆'
 })
 
-const posterConfig = computed(() => ({
-  templateCode: 'activity_share',
-  title: activity.value?.title,
-  desc: activity.value?.description,
-  pagePath: `pages/activity/promo?act=${act.value}`,
-  variables: {
-    title: activity.value?.title || '',
-    desc: activity.value?.description || '',
-    summary: goodsSummary.value,
-  },
-}))
+// 海报商品行：首行固定为免费领西瓜，其余商品每行 2 件（模板 goods_1~goods_4 逐行渲染）
+const posterGoodsLines = computed(() => {
+  const list = normalizeGoodsList(activity.value?.goodsList)
+  const line = (g: any) => `${g.name}${g.promoPrice == null ? '' : ` ¥${g.promoPrice}`}`
+  const rows: string[] = ['进店免费领西瓜 1/4 份']
+  for (let i = 0; i < list.length && rows.length < 4; i += 2) {
+    rows.push(list.slice(i, i + 2).map(line).join(' · '))
+  }
+  return rows
+})
+
+const posterConfig = computed(() => {
+  const rows = posterGoodsLines.value
+  return {
+    templateCode: 'promo_share',
+    pagePath: `pages/activity/promo?act=${act.value}`,
+    variables: {
+      title: activity.value?.title || '',
+      main_image: promoShareImage() || '',
+      activity_time: posterTimeText.value,
+      activity_venue: activity.value?.venueName || activity.value?.venue?.name || '',
+      goods_1: rows[0] || '',
+      goods_2: rows[1] || '',
+      goods_3: rows[2] || '',
+      goods_4: rows[3] || '',
+    },
+  }
+})
 
 onLoad((options) => {
   act.value = (options as any)?.act || ''
@@ -866,11 +890,13 @@ onShareTimeline(() => ({
   padding-bottom: 180rpx;
 }
 
+.promo-share-bar {
+  display: flex;
+  justify-content: flex-end;
+  padding: 20rpx 24rpx 0;
+}
+
 .promo-share-btn {
-  position: fixed;
-  top: 24rpx;
-  right: 24rpx;
-  z-index: 50;
   padding: 12rpx 28rpx;
   border-radius: 32rpx;
   background: var(--c-primary);

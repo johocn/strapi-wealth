@@ -312,11 +312,20 @@ const page = ref<any>(null)
 const loading = ref(false)
 
 const activity = computed(() => page.value?.activity || null)
+// 分享图优先级：cover 模块 bgImage → promoAssets[0] → 旧 assets[0]，与 promo-cover.vue 一致
+function promoShareImage() {
+  const mods = Array.isArray(page.value?.modules) ? page.value.modules : []
+  const cover = mods.find((m: any) => m?.type === 'cover')
+  const assets = Array.isArray(activity.value?.promoAssets) ? activity.value.promoAssets : []
+  const legacy = Array.isArray(activity.value?.assets) ? activity.value.assets : []
+  const raw = cover?.config?.bgImage || assets[0]?.url || legacy[0]?.url || ''
+  return resolveMediaUrl(raw) || undefined
+}
 function setupPromoShare() {
   const a = activity.value
   if (!a?.title) return
   const desc = (a.description || '').slice(0, 60) || undefined
-  setupPageShare({ title: `${a.title}｜活动宣传`, desc, imgUrl: undefined })
+  setupPageShare({ title: a.title, desc, imgUrl: promoShareImage() })
 }
 const styleClass = computed(() => `promo-${page.value?.activity?.promoTemplate || 'summit'}`)
 // 运营端可配置 promoColors 六色值，内联 CSS 变量覆盖模板默认配色（--c-*）
@@ -384,6 +393,7 @@ async function loadPage() {
     page.value = res ?? null
     uni.setNavigationBarTitle({ title: res?.activity?.title || '活动宣传' })
     if (res?.signupStatus?.signedUp) loadMessages()
+    setupPromoShare()
   } catch (e) {
     page.value = null
   } finally {
@@ -838,11 +848,13 @@ onShow(() => {
 onShareAppMessage(() => ({
   title: activity.value?.title || '活动宣传',
   path: `/pages/activity/promo?act=${act.value}`,
+  imageUrl: promoShareImage(),
 }))
 
 onShareTimeline(() => ({
   title: activity.value?.title || '活动宣传',
   query: `act=${act.value}`,
+  imageUrl: promoShareImage(),
 }))
 </script>
 

@@ -528,9 +528,8 @@
         pagePath: `pages/activity/detail?id=${id}`,
         variables: {
           title: activity?.title || '',
-          activity_time: activity?.startTime
-            ? `活动时间 · ${formatTime(activity.startTime)} ~ ${formatTime(activity.endTime)}`
-            : '活动时间 · 待定',
+          activity_start: formatTime(activity?.startTime || ''),
+          activity_end: formatTime(activity?.endTime || ''),
           activity_venue: activity?.venueName ? `活动场所 · ${activity.venueName}` : '活动场所 · 待定'
         }
       }"

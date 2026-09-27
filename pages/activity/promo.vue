@@ -10,9 +10,9 @@
     <!-- 稀缺转化条（促销页顶部，名额已满或活动结束后自动隐藏） -->
     <PromoScarcity v-if="page?.activity" :activity="page.activity" />
 
-    <!-- 模块分发 -->
-    <block v-if="page?.activity && modules.length">
-      <block v-for="m in modules" :key="m.sort">
+    <!-- 模块分发（活动未配置 cover 模块时自动补头部，保证无图活动首屏不空白） -->
+    <block v-if="page?.activity">
+      <block v-for="m in renderModules" :key="m.sort">
         <PromoCover v-if="m.type === 'cover'" :activity="page.activity" :config="m.config" />
         <PromoInfo v-else-if="m.type === 'info'" :activity="page.activity" :config="m.config" />
         <PromoRich v-else-if="m.type === 'rich'" :activity="page.activity" :config="m.config" />
@@ -350,6 +350,12 @@ const modules = computed(() =>
     .filter((m: any) => PROMO_TYPE_SET.has(m.type))
     .sort((a: any, b: any) => a.sort - b.sort)
 )
+// 无图兜底：活动未配置 cover 模块（或整页无模块）时，用活动数据合成一个头部，避免首屏只剩稀缺条
+const renderModules = computed(() => {
+  if (!activity.value) return modules.value
+  if (modules.value.some((m: any) => m?.type === 'cover')) return modules.value
+  return [{ type: 'cover', sort: 0, config: {} }, ...modules.value]
+})
 const contact = computed(() => page.value?.contact || null)
 const signupStatus = computed(() => page.value?.signupStatus || null)
 

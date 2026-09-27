@@ -31,4 +31,12 @@ describe('促销海报取数', () => {
     expect(src).toContain('rows.length < 4')
     expect(src).toContain('promoPrice')
   })
+
+  it('无图兜底：未配置 cover 模块时合成头部模块，页面按 renderModules 渲染', () => {
+    expect(src).toContain('const renderModules = computed')
+    expect(src).toContain("m?.type === 'cover'")
+    expect(src).toContain('{ type: \'cover\', sort: 0, config: {} }')
+    expect(src).toContain('v-for="m in renderModules"')
+    expect(src).not.toContain('v-if="page?.activity && modules.length"')
+  })
 })

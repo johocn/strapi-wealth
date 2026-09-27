@@ -451,7 +451,7 @@ const activityShareTemplate = {
   backgroundColor: "#FFFFFF",
   backgroundMode: "cover",
   requiredVariables: ["title", "qr_code"],
-  optionalVariables: ["activity_time", "activity_venue", "invite_code"],
+  optionalVariables: ["activity_start", "activity_end", "activity_venue", "invite_code"],
   elements: [
     baseElement({
       elementKey: "gradient_bar",
@@ -484,36 +484,52 @@ const activityShareTemplate = {
       sortOrder: 3
     }),
     baseElement({
-      elementKey: "activity_time",
+      elementKey: "activity_start",
       elementType: "text",
       isVariable: true,
-      variableName: "activity_time",
-      defaultValue: "\u6D3B\u52A8\u65F6\u95F4 \u00B7 \u6B3C\u5B9A",
+      variableName: "activity_start",
+      defaultValue: "",
       x: 30,
-      y: 240,
+      y: 238,
       width: 540,
-      height: 40,
+      height: 36,
       fontSize: 26,
-      fontColor: "#666666",
+      fontColor: "#1F2937",
       textAlign: "left",
       zIndex: 10,
       sortOrder: 4
+    }),
+    baseElement({
+      elementKey: "activity_end",
+      elementType: "text",
+      isVariable: true,
+      variableName: "activity_end",
+      defaultValue: "",
+      x: 30,
+      y: 280,
+      width: 540,
+      height: 36,
+      fontSize: 26,
+      fontColor: "#6B7280",
+      textAlign: "left",
+      zIndex: 10,
+      sortOrder: 5
     }),
     baseElement({
       elementKey: "activity_venue",
       elementType: "text",
       isVariable: true,
       variableName: "activity_venue",
-      defaultValue: "\u6D3B\u52A8\u573A\u6240 \u00B7 \u6B3C\u5B9A",
+      defaultValue: "",
       x: 30,
-      y: 295,
+      y: 332,
       width: 540,
-      height: 40,
+      height: 36,
       fontSize: 26,
-      fontColor: "#666666",
+      fontColor: "#6B7280",
       textAlign: "left",
       zIndex: 10,
-      sortOrder: 5
+      sortOrder: 6
     }),
     baseElement({
       elementKey: "main_info_badge",
@@ -521,7 +537,7 @@ const activityShareTemplate = {
       isVariable: false,
       content: "\u626B\u7801\u62A5\u540D",
       x: 225,
-      y: 390,
+      y: 422,
       width: 150,
       height: 44,
       fontSize: 24,
@@ -531,7 +547,7 @@ const activityShareTemplate = {
       elementBgColor: "#667eea",
       borderRadius: 8,
       zIndex: 10,
-      sortOrder: 6
+      sortOrder: 7
     }),
     baseElement({
       elementKey: "qr_code",
@@ -542,12 +558,12 @@ const activityShareTemplate = {
       qrInviteSeparator: "?",
       qrFallbackMode: "base_url_only",
       x: 200,
-      y: 480,
+      y: 512,
       width: 200,
       height: 200,
       qrSize: 200,
       zIndex: 10,
-      sortOrder: 7
+      sortOrder: 8
     }),
     baseElement({
       elementKey: "footer_text",
@@ -555,14 +571,14 @@ const activityShareTemplate = {
       isVariable: false,
       content: "\u540D\u989D\u6709\u9650 \u00B7 \u626B\u7801\u62A5\u540D\u53C2\u52A0",
       x: 30,
-      y: 720,
+      y: 752,
       width: 540,
       height: 30,
       fontSize: 24,
       fontColor: "#999999",
       textAlign: "center",
       zIndex: 10,
-      sortOrder: 8
+      sortOrder: 9
     })
   ]
 };

@@ -1,4 +1,4 @@
-function baseElement(overrides) {
+function baseElement(overrides: any) {
   return {
     elementKey: "",
     elementType: "text",
@@ -574,7 +574,7 @@ const promoShareTemplate = {
   backgroundColor: "#FFFFFF",
   backgroundMode: "cover",
   requiredVariables: ["title", "main_image", "qr_code"],
-  optionalVariables: ["activity_time", "activity_venue", "goods_1", "goods_2", "goods_3", "goods_4"],
+  optionalVariables: ["activity_start", "activity_end", "activity_venue", "goods_1", "goods_2", "goods_3", "goods_4"],
   elements: [
     baseElement({
       elementKey: "gradient_bar",
@@ -620,30 +620,30 @@ const promoShareTemplate = {
       sortOrder: 3
     }),
     baseElement({
-      elementKey: "activity_time",
+      elementKey: "activity_start",
       elementType: "text",
       isVariable: true,
-      variableName: "activity_time",
+      variableName: "activity_start",
       x: 30,
-      y: 592,
+      y: 582,
       width: 540,
-      height: 32,
+      height: 28,
       fontSize: 24,
-      fontColor: "#6B7280",
+      fontColor: "#1F2937",
       textAlign: "left",
       lineHeight: 1.5,
       zIndex: 10,
       sortOrder: 4
     }),
     baseElement({
-      elementKey: "activity_venue",
+      elementKey: "activity_end",
       elementType: "text",
       isVariable: true,
-      variableName: "activity_venue",
+      variableName: "activity_end",
       x: 30,
-      y: 632,
+      y: 614,
       width: 540,
-      height: 32,
+      height: 28,
       fontSize: 24,
       fontColor: "#6B7280",
       textAlign: "left",
@@ -652,20 +652,36 @@ const promoShareTemplate = {
       sortOrder: 5
     }),
     baseElement({
+      elementKey: "activity_venue",
+      elementType: "text",
+      isVariable: true,
+      variableName: "activity_venue",
+      x: 30,
+      y: 654,
+      width: 540,
+      height: 28,
+      fontSize: 24,
+      fontColor: "#6B7280",
+      textAlign: "left",
+      lineHeight: 1.5,
+      zIndex: 10,
+      sortOrder: 6
+    }),
+    baseElement({
       elementKey: "goods_1",
       elementType: "text",
       isVariable: true,
       variableName: "goods_1",
       x: 30,
-      y: 678,
+      y: 692,
       width: 540,
-      height: 32,
+      height: 26,
       fontSize: 22,
       fontColor: "#1F2937",
       textAlign: "left",
       lineHeight: 1.5,
       zIndex: 10,
-      sortOrder: 6
+      sortOrder: 7
     }),
     baseElement({
       elementKey: "goods_2",
@@ -673,15 +689,15 @@ const promoShareTemplate = {
       isVariable: true,
       variableName: "goods_2",
       x: 30,
-      y: 713,
+      y: 720,
       width: 540,
-      height: 32,
+      height: 26,
       fontSize: 22,
       fontColor: "#1F2937",
       textAlign: "left",
       lineHeight: 1.5,
       zIndex: 10,
-      sortOrder: 7
+      sortOrder: 8
     }),
     baseElement({
       elementKey: "goods_3",
@@ -691,23 +707,7 @@ const promoShareTemplate = {
       x: 30,
       y: 748,
       width: 540,
-      height: 32,
-      fontSize: 22,
-      fontColor: "#1F2937",
-      textAlign: "left",
-      lineHeight: 1.5,
-      zIndex: 10,
-      sortOrder: 8
-    }),
-    baseElement({
-      elementKey: "goods_4",
-      elementType: "text",
-      isVariable: true,
-      variableName: "goods_4",
-      x: 30,
-      y: 783,
-      width: 540,
-      height: 32,
+      height: 26,
       fontSize: 22,
       fontColor: "#1F2937",
       textAlign: "left",
@@ -716,18 +716,34 @@ const promoShareTemplate = {
       sortOrder: 9
     }),
     baseElement({
+      elementKey: "goods_4",
+      elementType: "text",
+      isVariable: true,
+      variableName: "goods_4",
+      x: 30,
+      y: 776,
+      width: 540,
+      height: 26,
+      fontSize: 22,
+      fontColor: "#1F2937",
+      textAlign: "left",
+      lineHeight: 1.5,
+      zIndex: 10,
+      sortOrder: 10
+    }),
+    baseElement({
       elementKey: "qr_code",
       elementType: "qrcode",
       isVariable: true,
       variableName: "qr_code",
       qrContentMode: "direct",
       x: 215,
-      y: 822,
+      y: 812,
       width: 170,
       height: 170,
       qrSize: 170,
       zIndex: 10,
-      sortOrder: 10
+      sortOrder: 11
     }),
     baseElement({
       elementKey: "footer_text",
@@ -735,7 +751,7 @@ const promoShareTemplate = {
       isVariable: false,
       content: "长按识别二维码 · 查看活动详情",
       x: 30,
-      y: 1005,
+      y: 994,
       width: 540,
       height: 30,
       fontSize: 22,
@@ -743,7 +759,7 @@ const promoShareTemplate = {
       textAlign: "center",
       lineHeight: 1.5,
       zIndex: 10,
-      sortOrder: 11
+      sortOrder: 12
     })
   ]
 };
@@ -754,8 +770,8 @@ const BUILTIN_TEMPLATES = {
   activity_share: activityShareTemplate,
   promo_share: promoShareTemplate
 };
-function resolveTemplateLocal(code, variables) {
-  const template = BUILTIN_TEMPLATES[code] || BUILTIN_TEMPLATES["brand_share"];
+function resolveTemplateLocal(code: string, variables: any) {
+  const template = (BUILTIN_TEMPLATES as any)[code] || BUILTIN_TEMPLATES["brand_share"];
   if (!template)
     return null;
   const sortedElements = [...template.elements].sort((a, b) => {

@@ -8,12 +8,27 @@ describe('促销海报取数', () => {
   it('posterConfig 计算属性存在', () => {
     expect(src).toContain('const posterConfig = computed')
   })
-  it('海报变量注入促销商品摘要 goodsSummary', () => {
-    expect(src).toContain('goodsSummary')
-    expect(src).toMatch(/summary:\s*(goodsSummary|.*goodsSummary)/)
+
+  it('日期拆为 activity_start / activity_end 两个变量，不再用 activity_time', () => {
+    expect(src).toContain('activity_start:')
+    expect(src).toContain('activity_end:')
+    expect(src).not.toContain('activity_time:')
   })
-  it('商品摘要最多取 3 件并带促销价', () => {
-    expect(src).toContain('slice(0, 3)')
+
+  it('日期用 formatDateTime 格式化，不再有硬编码「双节同庆」', () => {
+    expect(src).toContain('formatDateTime(activity.value?.startTime)')
+    expect(src).toContain('formatDateTime(activity.value?.endTime)')
+    expect(src).not.toContain('双节同庆')
+  })
+
+  it('商品行不再硬编码，首行取宣传重点（highlight 回落 subtitle）', () => {
+    expect(src).not.toContain('进店免费领西瓜')
+    expect(src).toContain('config?.highlight || cover?.config?.subtitle')
+  })
+
+  it('商品行仍每行 2 件并带促销价、最多 4 行', () => {
+    expect(src).toContain('i += 2')
+    expect(src).toContain('rows.length < 4')
     expect(src).toContain('promoPrice')
   })
 })

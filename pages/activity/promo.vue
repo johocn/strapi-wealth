@@ -285,6 +285,7 @@ import PromoScarcity from '../../components/promo/promo-scarcity.vue'
 import QrContactPopup from '../../components/promo/qr-contact-popup.vue'
 import { setupPageShare } from '../../utils/share'
 import { normalizeGoodsList } from '../../utils/promo-goods'
+import { formatDateTime } from '../../utils/promo-datetime'
 
 /** 可渲染模块类型白名单（未知 type 不渲染） */
 const PROMO_TYPE_SET = new Set([
@@ -809,25 +810,18 @@ async function sendMessage() {
 
 // ===== 分享海报 =====
 const showSharePoster = ref(false)
-// 海报活动时间：由起止时间推导，形如「10.1—10.8 双节同庆」
-const posterTimeText = computed(() => {
-  const fmt = (iso?: string) => {
-    if (!iso) return ''
-    const d = new Date(iso)
-    if (isNaN(d.getTime())) return ''
-    return `${d.getMonth() + 1}.${d.getDate()}`
-  }
-  const start = fmt(activity.value?.startTime)
-  const end = fmt(activity.value?.endTime)
-  if (start && end) return `${start}—${end} 双节同庆`
-  return '双节同庆'
-})
+// 海报活动时间：开始 / 结束各一行，YYYY-MM-DD HH:mm（模板 activity_start / activity_end 逐行渲染）
+const posterStartText = computed(() => formatDateTime(activity.value?.startTime))
+const posterEndText = computed(() => formatDateTime(activity.value?.endTime))
 
-// 海报商品行：首行固定为免费领西瓜，其余商品每行 2 件（模板 goods_1~goods_4 逐行渲染）
+// 海报商品行：首行取「宣传重点」（有则占首行，与宣传页共用同一要素），其余商品每行 2 件
 const posterGoodsLines = computed(() => {
+  const cover = modules.value.find((m: any) => m?.type === 'cover')
+  const highlight = cover?.config?.highlight || cover?.config?.subtitle || ''
   const list = normalizeGoodsList(activity.value?.goodsList)
   const line = (g: any) => `${g.name}${g.promoPrice == null ? '' : ` ¥${g.promoPrice}`}`
-  const rows: string[] = ['进店免费领西瓜 1/4 份']
+  const rows: string[] = []
+  if (highlight) rows.push(highlight)
   for (let i = 0; i < list.length && rows.length < 4; i += 2) {
     rows.push(list.slice(i, i + 2).map(line).join(' · '))
   }
@@ -842,7 +836,8 @@ const posterConfig = computed(() => {
     variables: {
       title: activity.value?.title || '',
       main_image: promoShareImage() || '',
-      activity_time: posterTimeText.value,
+      activity_start: posterStartText.value,
+      activity_end: posterEndText.value,
       activity_venue: activity.value?.venueName || activity.value?.venue?.name || '',
       goods_1: rows[0] || '',
       goods_2: rows[1] || '',

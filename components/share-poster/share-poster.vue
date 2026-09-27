@@ -1,6 +1,6 @@
 <template>
-  <view v-if="visible" class="poster-overlay" @click.self="close">
-    <view class="poster-stage">
+  <view v-if="visible" class="poster-overlay" @click="close">
+    <view class="poster-stage" @click.stop>
       <!-- 上：海报图片（等比缩放居中，长按可保存） -->
       <view
         v-if="generated"

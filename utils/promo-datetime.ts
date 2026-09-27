@@ -11,3 +11,9 @@ export function formatDateTime(iso?: string): string {
   if (isNaN(d.getTime())) return ''
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`
 }
+
+// 分享海报专用的带前缀文案（开始时间：/ 结束时间：）；时间缺失或非法时整体留空，交给模板跳过该行
+export function formatDateTimeWithLabel(iso: string | undefined, label: string): string {
+  const time = formatDateTime(iso)
+  return time ? `${label}${time}` : ''
+}

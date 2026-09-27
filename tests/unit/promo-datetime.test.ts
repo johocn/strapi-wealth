@@ -1,4 +1,4 @@
-import { formatDateTime } from '../../utils/promo-datetime'
+import { formatDateTime, formatDateTimeWithLabel } from '../../utils/promo-datetime'
 
 describe('promo-datetime', () => {
   it('固定 YYYY-MM-DD HH:mm，各段补零', () => {
@@ -14,5 +14,16 @@ describe('promo-datetime', () => {
     expect(formatDateTime(undefined)).toBe('')
     expect(formatDateTime('')).toBe('')
     expect(formatDateTime('not-a-date')).toBe('')
+  })
+
+  it('海报日期带前缀（开始时间：/ 结束时间：）', () => {
+    expect(formatDateTimeWithLabel('2026-10-01T00:00:00', '开始时间：')).toBe('开始时间：2026-10-01 00:00')
+    expect(formatDateTimeWithLabel('2026-10-08T23:59:00', '结束时间：')).toBe('结束时间：2026-10-08 23:59')
+  })
+
+  it('时间缺失时整体留空，不残留前缀（模板跳过该行）', () => {
+    expect(formatDateTimeWithLabel(undefined, '开始时间：')).toBe('')
+    expect(formatDateTimeWithLabel('', '结束时间：')).toBe('')
+    expect(formatDateTimeWithLabel('not-a-date', '开始时间：')).toBe('')
   })
 })

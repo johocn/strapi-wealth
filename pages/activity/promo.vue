@@ -285,7 +285,8 @@ import PromoScarcity from '../../components/promo/promo-scarcity.vue'
 import QrContactPopup from '../../components/promo/qr-contact-popup.vue'
 import { setupPageShare } from '../../utils/share'
 import { normalizeGoodsList } from '../../utils/promo-goods'
-import { formatDateTime } from '../../utils/promo-datetime'
+import { formatDateTimeWithLabel } from '../../utils/promo-datetime'
+import { extractPosterSlogan } from '../../utils/poster-templates'
 
 /** 可渲染模块类型白名单（未知 type 不渲染） */
 const PROMO_TYPE_SET = new Set([
@@ -816,9 +817,9 @@ async function sendMessage() {
 
 // ===== 分享海报 =====
 const showSharePoster = ref(false)
-// 海报活动时间：开始 / 结束各一行，YYYY-MM-DD HH:mm（模板 activity_start / activity_end 逐行渲染）
-const posterStartText = computed(() => formatDateTime(activity.value?.startTime))
-const posterEndText = computed(() => formatDateTime(activity.value?.endTime))
+// 海报活动时间：开始 / 结束各一行，带「开始时间：」「结束时间：」前缀，YYYY-MM-DD HH:mm
+const posterStartText = computed(() => formatDateTimeWithLabel(activity.value?.startTime, '开始时间：'))
+const posterEndText = computed(() => formatDateTimeWithLabel(activity.value?.endTime, '结束时间：'))
 
 // 海报商品行：首行取「宣传重点」（有则占首行，与宣传页共用同一要素），其余商品每行 2 件
 const posterGoodsLines = computed(() => {
@@ -832,6 +833,25 @@ const posterGoodsLines = computed(() => {
     rows.push(list.slice(i, i + 2).map(line).join(' · '))
   }
   return rows
+})
+
+// 主图兜底「公益理念宣传图」：广告语取理念向文案（purpose 首句优先），与商品行首行的highlight不共用；落款取场所名
+const posterImageFallback = computed(() => {
+  const a = activity.value
+  if (!a) return { slogan: '', sign: '', primary: '', accent: '' }
+  const cover = modules.value.find((m: any) => m?.type === 'cover')
+  const colors = a.promoColors || {}
+  return {
+    slogan: extractPosterSlogan([
+      a.purpose,
+      a.description,
+      cover?.config?.highlight || cover?.config?.subtitle,
+      a.title,
+    ]),
+    sign: a.venueName || a.venue?.name || '',
+    primary: colors.primary || '',
+    accent: colors.accent || '',
+  }
 })
 
 const posterConfig = computed(() => {
@@ -849,6 +869,11 @@ const posterConfig = computed(() => {
       goods_2: rows[1] || '',
       goods_3: rows[2] || '',
       goods_4: rows[3] || '',
+      // 主图兜底（无图 / 加载失败）时渲染的「公益理念宣传图」文案与配色
+      image_fallback_slogan: posterImageFallback.value.slogan,
+      image_fallback_sign: posterImageFallback.value.sign,
+      image_fallback_primary: posterImageFallback.value.primary,
+      image_fallback_accent: posterImageFallback.value.accent,
     },
   }
 })

@@ -40,7 +40,7 @@ import { getUser } from '@/utils/storage'
 import { getImageUrl } from '@/utils/env'
 import { getStoredAuthConfig } from '@/services/auth-config'
 import { PosterRenderer } from '@/utils/poster-renderer'
-import { resolveTemplateLocal, BUILTIN_TEMPLATES } from '@/utils/poster-templates'
+import { resolveTemplateLocal, BUILTIN_TEMPLATES, buildImageFallback } from '@/utils/poster-templates'
 import { renderPoster } from '@/utils/ad-api'
 
 interface PosterConfig {
@@ -173,6 +173,7 @@ const buildVariables = (): Record<string, string> => {
  */
 const fetchRenderData = async (templateCode: string, variables: Record<string, string>) => {
   const apiResult = await renderPoster(templateCode, variables)
+  const imageFallback = buildImageFallback(variables)
   if (apiResult && apiResult.template && Array.isArray(apiResult.elements)) {
     const builtin = BUILTIN_TEMPLATES[templateCode]
     if (builtin) {
@@ -183,6 +184,12 @@ const fetchRenderData = async (templateCode: string, variables: Record<string, s
             el.resolvedContent = el.isVariable ? (builtinEl.defaultValue || '') : (builtinEl.content || '')
           }
         }
+      })
+    }
+    // 服务端模板只回元素与解析后的变量，主图兜底文案由 C 端变量补齐
+    if (imageFallback) {
+      apiResult.elements.forEach((el: any) => {
+        if (el.elementType === 'image' && el.variableName === 'main_image') el.imageFallback = imageFallback
       })
     }
     return apiResult

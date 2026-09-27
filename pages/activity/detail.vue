@@ -528,8 +528,8 @@
         pagePath: `pages/activity/detail?id=${id}`,
         variables: {
           title: activity?.title || '',
-          activity_start: formatTime(activity?.startTime || ''),
-          activity_end: formatTime(activity?.endTime || ''),
+          activity_start: formatTimeLabel(activity?.startTime, '开始时间：'),
+          activity_end: formatTimeLabel(activity?.endTime, '结束时间：'),
           activity_venue: activity?.venueName ? `活动场所 · ${activity.venueName}` : '活动场所 · 待定'
         }
       }"
@@ -1581,6 +1581,12 @@ function formatTime(dateStr: string): string {
   const d = new Date(dateStr)
   if (isNaN(d.getTime())) return dateStr
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')} ${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`
+}
+
+// 分享海报日期带前缀（开始时间：/ 结束时间：）；时间缺失时整体留空，模板自动跳过该行
+function formatTimeLabel(dateStr: string | undefined, label: string): string {
+  const time = formatTime(dateStr || '')
+  return time ? `${label}${time}` : ''
 }
 
 async function loadActivity() {

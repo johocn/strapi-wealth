@@ -1,6 +1,7 @@
 // 商户促销活动 —— 海报取数契约（复用 share-poster，不新增海报渲染器）
 import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
+import { extractPosterSlogan } from '../../utils/poster-templates'
 
 const src = readFileSync(resolve(__dirname, '../../pages/activity/promo.vue'), 'utf8')
 
@@ -15,9 +16,9 @@ describe('促销海报取数', () => {
     expect(src).not.toContain('activity_time:')
   })
 
-  it('日期用 formatDateTime 格式化，不再有硬编码「双节同庆」', () => {
-    expect(src).toContain('formatDateTime(activity.value?.startTime)')
-    expect(src).toContain('formatDateTime(activity.value?.endTime)')
+  it('海报日期带「开始时间：/结束时间：」前缀，且不再有硬编码「双节同庆」', () => {
+    expect(src).toContain("formatDateTimeWithLabel(activity.value?.startTime, '开始时间：')")
+    expect(src).toContain("formatDateTimeWithLabel(activity.value?.endTime, '结束时间：')")
     expect(src).not.toContain('双节同庆')
   })
 
@@ -38,5 +39,40 @@ describe('促销海报取数', () => {
     expect(src).toContain('{ type: \'cover\', sort: 0, config: {} }')
     expect(src).toContain('v-for="m in renderModules"')
     expect(src).not.toContain('v-if="page?.activity && modules.length"')
+  })
+
+  it('主图兜底文案与配色随活动走，透传 image_fallback_* 变量', () => {
+    expect(src).toContain('const posterImageFallback = computed')
+    expect(src).toContain('extractPosterSlogan(')
+    expect(src).toContain('image_fallback_slogan:')
+    expect(src).toContain('image_fallback_sign:')
+    expect(src).toContain('image_fallback_primary:')
+    expect(src).toContain('image_fallback_accent:')
+  })
+})
+
+describe('兜底图广告语填充链', () => {
+  it('purpose 首个短句优先（理念向）', () => {
+    expect(extractPosterSlogan([
+      '扎根双阳，邻里超市。做有人情味的产品，开最有人情味的超市。',
+      '10.1—10.8 双节同庆｜长春双阳优美惠市集生鲜超市',
+      '进店免费领西瓜',
+      '免费领西瓜｜优美惠双节钜惠',
+    ])).toBe('扎根双阳，邻里超市')
+  })
+
+  it('跳过数字开头与超过 20 字的句子，回落到下一个来源', () => {
+    expect(extractPosterSlogan([
+      '10.1—10.8 双节同庆｜长春双阳优美惠市集生鲜超市',
+      '进店免费领西瓜',
+    ])).toBe('进店免费领西瓜')
+  })
+
+  it('全部来源为空时返回空串（不画广告语）', () => {
+    expect(extractPosterSlogan([undefined, '', '   '])).toBe('')
+  })
+
+  it('超过 20 字的句子被跳过', () => {
+    expect(extractPosterSlogan(['这是一句超过二十个字的超长广告语内容需要被跳过'])).toBe('')
   })
 })

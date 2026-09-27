@@ -156,13 +156,17 @@ class PosterRenderer {
   async drawImage(ctx, element, isH5) {
     const { x, y, width, height, borderRadius, imageFit } = element;
     const src = element.resolvedContent || element.defaultValue || "";
-    if (!src)
+    if (!src) {
+      this.drawImageFallback(ctx, element, isH5);
       return;
+    }
     try {
       if (isH5) {
         const img = await this.loadImageH5(src);
-        if (!img)
+        if (!img) {
+          this.drawImageFallback(ctx, element, isH5);
           return;
+        }
         if (borderRadius > 0 && borderRadius >= width / 2 - 1) {
           this.drawCircularImageH5(ctx, img, x, y, width);
         } else if (borderRadius > 0) {
@@ -176,8 +180,10 @@ class PosterRenderer {
         }
       } else {
         const tempPath = await this.downloadImageMP(src);
-        if (!tempPath)
+        if (!tempPath) {
+          this.drawImageFallback(ctx, element, isH5);
           return;
+        }
         if (borderRadius > 0 && borderRadius >= width / 2 - 1) {
           this.drawCircularImageMP(ctx, tempPath, x, y, width);
         } else {
@@ -186,7 +192,91 @@ class PosterRenderer {
       }
     } catch (e) {
       console.warn(`[poster-renderer] \u7ED8\u5236\u56FE\u7247 ${element.elementKey} \u5931\u8D25:`, e);
+      this.drawImageFallback(ctx, element, isH5);
     }
+  }
+  // ==================== 主图兜底：公益理念宣传图 ====================
+  /**
+   * 主图缺省或加载失败时，在 main_image 同一矩形内绘制「公益理念宣传图」。
+   * 底线：渐变色底 + 「益」徽记恒画，绝不出现白块；广告语 / 落款缺哪行不画哪行。
+   * 文案与配色由 element.imageFallback 注入（模板解析阶段从页面变量带入，见 poster-templates）。
+   */
+  drawImageFallback(ctx, element, isH5) {
+    const fb = element.imageFallback;
+    if (!fb)
+      return;
+    const { x, y, width, height } = element;
+    const radius = element.borderRadius || 0;
+    const primary = fb.primary || "#EF4444";
+    const accent = fb.accent || "#F97316";
+    this.drawRoundedRectPath(ctx, x, y, width, height, radius, isH5);
+    const gradient = this.createLinearGradient(ctx, x, y, x + width, y + height, isH5);
+    this.addColorStop(gradient, 0, primary, isH5);
+    this.addColorStop(gradient, 1, accent, isH5);
+    this.setFillStyle(ctx, gradient, isH5);
+    this.fill(ctx, isH5);
+    if (this.isLightColor(primary) || this.isLightColor(accent)) {
+      this.drawRoundedRectPath(ctx, x, y, width, height, radius, isH5);
+      this.setFillStyle(ctx, "rgba(0,0,0,0.22)", isH5);
+      this.fill(ctx, isH5);
+    }
+    const cx = x + width / 2;
+    const cy = y + height * 0.3935;
+    this.setStrokeStyle(ctx, "rgba(255,255,255,0.22)", isH5);
+    this.setLineWidth(ctx, 2, isH5);
+    const rings = [Math.round(width * 0.226), Math.round(width * 0.185)];
+    for (const r of rings) {
+      ctx.beginPath();
+      ctx.arc(cx, cy, r, 0, Math.PI * 2);
+      this.stroke(ctx, isH5);
+    }
+    const badge = Math.round(width * 0.156);
+    this.drawRoundedRectPath(ctx, cx - badge / 2, cy - badge / 2, badge, badge, Math.round(badge * 0.26), isH5);
+    this.setFillStyle(ctx, "#FFFFFF", isH5);
+    this.fill(ctx, isH5);
+    const badgeFont = Math.round(badge * 0.55);
+    this.drawFallbackText(ctx, "益", cx, cy + badgeFont * 0.35, badgeFont, primary, isH5, true);
+    if (fb.slogan) {
+      const sloganFont = Math.round(width * 0.0667);
+      this.drawFallbackText(ctx, fb.slogan, cx, y + height * 0.7678, sloganFont, "#FFFFFF", isH5, true, width - 48);
+    }
+    if (fb.sign) {
+      const signFont = Math.round(width * 0.0407);
+      this.drawFallbackText(ctx, fb.sign, cx, y + height * 0.8667, signFont, "rgba(255,255,255,0.88)", isH5, false, width - 48);
+    }
+  }
+  /** 兜底图文本：水平居中、基线对齐，超宽自动换行 */
+  drawFallbackText(ctx, text, cx, baselineY, fontSize, fontColor, isH5, bold, maxWidth) {
+    if (isH5) {
+      ctx.font = `${bold ? "bold " : ""}${fontSize}px sans-serif`;
+      ctx.fillStyle = fontColor;
+      ctx.textAlign = "center";
+      ctx.textBaseline = "alphabetic";
+    } else {
+      ctx.setFontSize(fontSize);
+      ctx.setFillStyle(fontColor);
+      ctx.setTextAlign("center");
+      ctx.setTextBaseline("alphabetic");
+    }
+    const limit = maxWidth || Number.MAX_SAFE_INTEGER;
+    if (isH5) {
+      this.wrapTextH5(ctx, text, cx, baselineY, limit, fontSize * 1.4);
+    } else {
+      this.wrapTextMP(ctx, text, cx, baselineY, limit, fontSize * 1.4, fontSize);
+    }
+  }
+  /** 颜色是否偏亮（决定是否叠加深色遮罩保白字对比度） */
+  isLightColor(color) {
+    const matched = /^#?([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/.exec(String(color || "").trim());
+    if (!matched)
+      return false;
+    let hex = matched[1];
+    if (hex.length === 3)
+      hex = hex.split("").map((c) => c + c).join("");
+    const r = parseInt(hex.slice(0, 2), 16);
+    const g = parseInt(hex.slice(2, 4), 16);
+    const b = parseInt(hex.slice(4, 6), 16);
+    return (0.299 * r + 0.587 * g + 0.114 * b) / 255 > 0.72;
   }
   // ==================== QRCode 绘制 ====================
   async drawQRCode(ctx, element, isH5) {

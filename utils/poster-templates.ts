@@ -590,7 +590,7 @@ const promoShareTemplate = {
   backgroundColor: "#FFFFFF",
   backgroundMode: "cover",
   requiredVariables: ["title", "main_image", "qr_code"],
-  optionalVariables: ["activity_start", "activity_end", "activity_venue", "goods_1", "goods_2", "goods_3", "goods_4"],
+  optionalVariables: ["activity_start", "activity_end", "activity_venue", "goods_1", "goods_2", "goods_3", "goods_4", "image_fallback_slogan", "image_fallback_sign", "image_fallback_primary", "image_fallback_accent"],
   elements: [
     baseElement({
       elementKey: "gradient_bar",
@@ -786,10 +786,53 @@ const BUILTIN_TEMPLATES = {
   activity_share: activityShareTemplate,
   promo_share: promoShareTemplate
 };
+/**
+ * 主图兜底「公益理念宣传图」的文案与配色载体。
+ * 页面按 image_fallback_* 变量传入，解析阶段挂到 main_image 元素上，渲染器无图/加载失败时使用。
+ */
+function buildImageFallback(variables: any) {
+  if (!variables)
+    return null;
+  const slogan = String(variables.image_fallback_slogan || "").trim();
+  const sign = String(variables.image_fallback_sign || "").trim();
+  const primary = String(variables.image_fallback_primary || "").trim();
+  const accent = String(variables.image_fallback_accent || "").trim();
+  if (!slogan && !sign && !primary && !accent)
+    return null;
+  return { slogan, sign, primary, accent };
+}
+/** 取首个合格短句：按 。！？；与换行切分，跳过数字开头或超过 20 字的句子 */
+function firstQualifiedSentence(text: string) {
+  const parts = String(text || "").split(/[。！？；\n]+/);
+  for (const part of parts) {
+    const sentence = part.trim();
+    if (!sentence)
+      continue;
+    if (/^\d/.test(sentence))
+      continue;
+    if (sentence.length > 20)
+      continue;
+    return sentence;
+  }
+  return "";
+}
+/**
+ * 兜底图广告语填充链：purpose 首个短句 → description 首个合格句
+ * → cover.config.highlight → title → 不画（返回空串）
+ */
+function extractPosterSlogan(candidates: Array<string | undefined | null>) {
+  for (const candidate of candidates) {
+    const sentence = firstQualifiedSentence(String(candidate || "").trim());
+    if (sentence)
+      return sentence;
+  }
+  return "";
+}
 function resolveTemplateLocal(code: string, variables: any) {
   const template = (BUILTIN_TEMPLATES as any)[code] || BUILTIN_TEMPLATES["brand_share"];
   if (!template)
     return null;
+  const imageFallback = buildImageFallback(variables);
   const sortedElements = [...template.elements].sort((a, b) => {
     if (a.zIndex !== b.zIndex)
       return a.zIndex - b.zIndex;
@@ -825,6 +868,9 @@ function resolveTemplateLocal(code: string, variables: any) {
         }
       }
     }
+    if (imageFallback && resolved.elementType === "image" && resolved.variableName === "main_image") {
+      resolved.imageFallback = imageFallback;
+    }
     return resolved;
   }).filter((e) => !e.hidden);
   return {
@@ -840,5 +886,7 @@ function resolveTemplateLocal(code: string, variables: any) {
 }
 export {
   BUILTIN_TEMPLATES,
-  resolveTemplateLocal
+  resolveTemplateLocal,
+  buildImageFallback,
+  extractPosterSlogan
 };

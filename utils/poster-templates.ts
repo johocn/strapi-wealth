@@ -918,6 +918,18 @@ function extractPosterSlogan(candidates: Array<string | undefined | null>) {
   }
   return "";
 }
+/** 海报品类 chips：取预订表单 categories 字段选项的前 4 项，固定返回长度 4（缺位空串） */
+function pickCategoryChips(formConfig: any): string[] {
+  const out = ["", "", "", ""];
+  const fields = Array.isArray(formConfig) ? formConfig : [];
+  const field = fields.find((f: any) => f && f.key === "categories");
+  const options = Array.isArray(field?.options) ? field.options : [];
+  for (let i = 0; i < out.length && i < options.length; i++) {
+    const v = options[i];
+    out[i] = typeof v === "string" ? v.trim() : "";
+  }
+  return out;
+}
 function resolveTemplateLocal(code: string, variables: any) {
   const template = (BUILTIN_TEMPLATES as any)[code] || BUILTIN_TEMPLATES["brand_share"];
   if (!template)
@@ -978,5 +990,6 @@ export {
   BUILTIN_TEMPLATES,
   resolveTemplateLocal,
   buildImageFallback,
-  extractPosterSlogan
+  extractPosterSlogan,
+  pickCategoryChips
 };

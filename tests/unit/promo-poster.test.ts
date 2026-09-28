@@ -1,7 +1,7 @@
 // 商户促销活动 —— 海报取数契约（复用 share-poster，不新增海报渲染器）
 import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
-import { extractPosterSlogan } from '../../utils/poster-templates'
+import { extractPosterSlogan, pickCategoryChips } from '../../utils/poster-templates'
 
 const src = readFileSync(resolve(__dirname, '../../pages/activity/promo.vue'), 'utf8')
 
@@ -74,5 +74,33 @@ describe('兜底图广告语填充链', () => {
 
   it('超过 20 字的句子被跳过', () => {
     expect(extractPosterSlogan(['这是一句超过二十个字的超长广告语内容需要被跳过'])).toBe('')
+  })
+})
+
+describe('海报品类 chips 取数', () => {
+  const formConfig = [
+    { key: 'items', type: 'textarea', label: '想吃的单品' },
+    { key: 'categories', type: 'multi', label: '想要的品类', options: ['蔬菜', '水果', '肉禽蛋', '水产海鲜', '粮油调味'] },
+    { key: 'phone', type: 'phone', label: '手机号' },
+  ]
+
+  it('取 categories 字段选项的前 4 项', () => {
+    expect(pickCategoryChips(formConfig)).toEqual(['蔬菜', '水果', '肉禽蛋', '水产海鲜'])
+  })
+
+  it('固定返回长度 4，选项不足时补空串', () => {
+    expect(pickCategoryChips([{ key: 'categories', type: 'multi', options: ['蔬菜', '水果'] }]))
+      .toEqual(['蔬菜', '水果', '', ''])
+  })
+
+  it('无 categories 字段 / 非数组 / 空选项时返回 4 个空串', () => {
+    expect(pickCategoryChips([{ key: 'phone', type: 'phone' }])).toEqual(['', '', '', ''])
+    expect(pickCategoryChips(null)).toEqual(['', '', '', ''])
+    expect(pickCategoryChips([{ key: 'categories', options: [] }])).toEqual(['', '', '', ''])
+  })
+
+  it('非字符串选项按空串处理，字符串选项去空白', () => {
+    expect(pickCategoryChips([{ key: 'categories', options: [{ label: 'x' }, ' 水果 '] }]))
+      .toEqual(['', '水果', '', ''])
   })
 })

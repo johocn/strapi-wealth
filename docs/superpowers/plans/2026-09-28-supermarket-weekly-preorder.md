@@ -693,3 +693,38 @@ git commit -m "docs(ops): 每周市集文案包与运营 SOP 存档"
 3. 生产落库后：配了新变量的活动海报出现 4 枚品类 chip + 主推横条；未配置的旧活动海报版式按新位移渲染、无裁切。
 4. 商品行无图时显示缺省图。
 5. 文案包 + SOP 已存档，运营可按 6 步复制下一期。
+
+---
+
+## 执行记录（2026-09-28 回填）
+
+子代理驱动执行（每 Task 一个全新子代理 + Task 间两阶段审查）。提交链：
+
+| Task | 仓库 | commit | 说明 |
+|---|---|---|---|
+| 1 | shao | `af42a25` | promo_share 模板 5 新元素 + 位移 + optionalVariables |
+| 3 | shao | `fb00152` | pickCategoryChips 纯函数 |
+| 4 | shao | `7676962` | promo.vue 透传 5 变量 |
+| 5 | shao | `69172b4` | 缺省图 + 商品行无图占位 |
+| 8 | shao | `39aac37` | 文案包与运营 SOP 存档 |
+| 2 | basic | `bc7fc5535e` | 落库脚本逐值同步 |
+| 记录 | shao | 本提交 | 执行记录回填 |
+
+### 与计划原文的偏离
+
+1. **单测命令**：计划写 `npx jest <path>`，实跑会走 babel 报解析错误；实际统一用仓库既有的 `npx jest --config jest.unit.config.js`（全量 20 suites / 179 tests）。
+2. **本地落库与本地端到端手测未执行**（Task 2 Step 3-4、Task 6 Step 3）：本机无 postgres、redis、docker（5432/6379 均不通，`docker` 命令不存在），无法起本地 strapi。已与用户确认接受替代方案：模板一致性改用**程序化逐值比对**（elementKey/elementType/isVariable/variableName/x/y/width/height/fontSize/fontColor/textAlign/lineHeight/elementBgColor/borderRadius/sortOrder 逐字段，结果 `PARITY OK`，两侧均 17 元素），运行时验证前移到生产（Task 7）。
+3. **缺省图扩展名**：计划按 `.jpg` 写，实际生成即为 `youmeihui-weekly-market-default.jpg`，与计划一致，无需改名。
+4. **Task 5 生成方式**：缺省图由主会话用 `GenerateImage` 生成（1920×1920 正方形，暖底 + 中文标题 + 8 品类图标网格），非子代理。
+5. **新增用例数**：Task 1 实际追加 4 个用例（与计划给定代码一致，计划正文「5 个用例 PASS」指含原有用例的 8 个总数）；Task 3 原有用例实为 11 个（计划写 8），加上新 4 个共 15 个。
+
+### 生产落库与发布（Task 7）
+
+- 落库（2026-09-28）：`API_BASE=https://h.joho.cn/api` 执行 `seed-poster-templates.cjs` → `promo_share` 12 → 17 个元素；`activity_share` 幂等重写 8 → 8（执行前已比对两模板逐值一致，确认对 `activity_share` 无额外影响）。
+- 线上核对（管理端接口）：`promo_share` count=17、optional=16，几何逐值符合设计 §3 表格（`main_image` y40 h404、`title` y460、`activity_venue` y580、chip y614 x30/168/306/444、`main_push` y652 540×44、`goods_1..4` y702/730/758/786、`qr_code` y820、`footer_text` y996 → 底部留白 24）。
+- H5 发布：`deploy-h5.ps1` → `SYNC_OK`；`https://v.joho.cn/static/youmeihui-weekly-market-default.jpg` 返回 200（255556 字节，与本地一致）。
+- 旧活动回归取样：`iuf1iy42d6h61b0ptzg37q4q`（免费领西瓜｜优美惠双节钜惠），其 `formConfig` 为空、无 `custom` 模块 `mainPush` → chip 与主推横条均不绘制，符合「不填不绘制」预期。
+
+### 未闭环项（不留 TODO，明确前置条件）
+
+- **「配了新变量」的线上海报目视复测未做**：需要一个已配置 `categories`（≥4 项）与 `custom.mainPush` 的活动，该内容属 Task 8 Step 1-3 的运营后台配置，尚未创建。配置完成后按 Task 7 Step 2 复核即可。

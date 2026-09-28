@@ -221,6 +221,24 @@ function getSharePath(page: string = '/pages/index/index'): string {
   return path
 }
 
+/**
+ * 邀请分享参数（query 片段）：业务参数 + inviteCode + inviterId
+ * onShareTimeline 只接收 query 而非完整 path，无法复用 getSharePath，故单独提供；
+ * 取值来源与 getSharePath 一致（getInviteCode / getUser），避免同页两套邀请码来源。
+ * @param extra 需要一并拼入的业务参数，空值自动跳过
+ */
+function getInviteQuery(extra: Record<string, string> = {}): string {
+  const parts: string[] = []
+  for (const [key, value] of Object.entries(extra)) {
+    if (value) parts.push(`${key}=${value}`)
+  }
+  const inviteCode = getInviteCode()
+  const userId = getUser()?.id ?? ''
+  if (inviteCode) parts.push(`inviteCode=${inviteCode}`)
+  if (userId) parts.push(`inviterId=${userId}`)
+  return parts.join('&')
+}
+
 // ==================== 分享裂变 v2 ====================
 
 /**
@@ -471,6 +489,7 @@ export {
   storeInviteCode,
   handleInviteLink,
   getSharePath,
+  getInviteQuery,
   buildShareLink,
   buildHomeShareLink,
   reportShareVisitFromLaunch,

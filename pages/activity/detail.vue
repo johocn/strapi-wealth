@@ -610,7 +610,7 @@
 
 <script setup lang="ts">
 import { ref, computed, nextTick, watch, onMounted, onUnmounted } from 'vue'
-import { onShow, onUnload, onPageScroll } from '@dcloudio/uni-app'
+import { onShow, onUnload, onPageScroll, onShareAppMessage, onShareTimeline } from '@dcloudio/uni-app'
 import {
   getActivityDetail,
   signupActivity,
@@ -636,6 +636,7 @@ import {
 import { getToken } from '../../utils/storage'
 import { isWechatBrowser, resolveMediaUrl } from '../../utils/env'
 import { setupPageShare } from '../../utils/share'
+import { getSharePath, getInviteQuery } from '../../utils/invite'
 import { redirectToWechatAuth, getCurrentPagePath } from '../../utils/wx-h5-login'
 import { shouldUseSso, buildSsoPageUrl } from '../../utils/login-chain'
 import { getStoredAuthConfig } from '../../services/auth-config'
@@ -1636,6 +1637,19 @@ function setupActivityShare() {
   const desc = (a.description || '').slice(0, 60) || undefined
   setupPageShare({ title: a.title, desc, imgUrl: resolveActivityCover(a) || undefined })
 }
+
+// 小程序转发：此前该页无页面级配置，会退回 App.vue 全局兜底而丢失活动 id
+onShareAppMessage(() => ({
+  title: activity.value?.title || '活动详情',
+  path: getSharePath(`/pages/activity/detail?id=${id}`),
+  imageUrl: resolveActivityCover(activity.value) || undefined,
+}))
+
+onShareTimeline(() => ({
+  title: activity.value?.title || '活动详情',
+  query: getInviteQuery({ id }),
+  imageUrl: resolveActivityCover(activity.value) || undefined,
+}))
 
 // 我的邀请跳转
 function goMyInvitation() {

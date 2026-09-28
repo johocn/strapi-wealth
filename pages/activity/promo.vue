@@ -284,6 +284,7 @@ import PromoNotice from '../../components/promo/promo-notice.vue'
 import PromoScarcity from '../../components/promo/promo-scarcity.vue'
 import QrContactPopup from '../../components/promo/qr-contact-popup.vue'
 import { setupPageShare } from '../../utils/share'
+import { getSharePath, getInviteQuery } from '../../utils/invite'
 import { normalizeGoodsList } from '../../utils/promo-goods'
 import { formatDateTimeWithLabel } from '../../utils/promo-datetime'
 import { extractPosterSlogan } from '../../utils/poster-templates'
@@ -897,13 +898,13 @@ onShow(() => {
 
 onShareAppMessage(() => ({
   title: activity.value?.title || '活动宣传',
-  path: `/pages/activity/promo?act=${act.value}`,
+  path: getSharePath(`/pages/activity/promo?act=${act.value}`),
   imageUrl: promoShareImage(),
 }))
 
 onShareTimeline(() => ({
   title: activity.value?.title || '活动宣传',
-  query: `act=${act.value}`,
+  query: getInviteQuery({ act: act.value }),
   imageUrl: promoShareImage(),
 }))
 </script>

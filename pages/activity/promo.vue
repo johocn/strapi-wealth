@@ -33,6 +33,12 @@
         <PromoFaq v-else-if="m.type === 'faq'" :activity="page.activity" :config="m.config" />
         <PromoCustom v-else-if="m.type === 'custom'" :activity="page.activity" :config="m.config" />
         <PromoGoods v-else-if="m.type === 'goods'" :activity="page.activity" :config="m.config" />
+        <PromoSurvey
+          v-else-if="m.type === 'survey'"
+          :activity="page.activity"
+          :config="m.config"
+          @need-login="onSurveyNeedLogin"
+        />
         <PromoPurpose v-else-if="m.type === 'purpose'" :activity="page.activity" :config="m.config" />
         <PromoNotice v-else-if="m.type === 'notice'" :activity="page.activity" :config="m.config" />
         <FloatContact
@@ -279,6 +285,7 @@ import PromoFaq from '../../components/promo/promo-faq.vue'
 import PromoCustom from '../../components/promo/promo-custom.vue'
 import FloatContact from '../../components/promo/float-contact.vue'
 import PromoGoods from '../../components/promo/promo-goods.vue'
+import PromoSurvey from '../../components/promo/promo-survey.vue'
 import PromoPurpose from '../../components/promo/promo-purpose.vue'
 import PromoNotice from '../../components/promo/promo-notice.vue'
 import PromoScarcity from '../../components/promo/promo-scarcity.vue'
@@ -307,6 +314,7 @@ const PROMO_TYPE_SET = new Set([
   'goods',
   'purpose',
   'notice',
+  'survey',
 ])
 
 // 报名引导存储键（与 detail.vue 一致，微信授权跳转回调后恢复引导进度）
@@ -816,6 +824,23 @@ async function sendMessage() {
   }
 }
 
+// ===== 选品调研登录引导 =====
+// 未登录点击提交：本页统一弹登录引导；登录返回后（onShow）重新触发提交
+let surveyRetry: (() => void) | null = null
+
+function onSurveyNeedLogin(retry?: () => void) {
+  surveyRetry = typeof retry === 'function' ? retry : null
+  uni.showModal({
+    title: '提示',
+    content: '登录后即可提交选品',
+    confirmText: '去登录',
+    success: (res) => {
+      if (res.confirm) uni.navigateTo({ url: '/pages/login/login' })
+      else surveyRetry = null
+    },
+  })
+}
+
 // ===== 分享海报 =====
 const showSharePoster = ref(false)
 // 海报活动时间：开始 / 结束各一行，带「开始时间：」「结束时间：」前缀，YYYY-MM-DD HH:mm
@@ -911,6 +936,12 @@ onShow(() => {
   // 从登录/授权等页面返回时静默刷新聚合数据（保留现有内容）
   if (act.value && page.value) loadPage()
   if (activity.value) setupPromoShare()
+  // 选品调研：登录返回后补交此前被拦下的提交
+  if (surveyRetry) {
+    const retry = surveyRetry
+    surveyRetry = null
+    retry()
+  }
 })
 
 onShareAppMessage(() => ({

@@ -1,6 +1,6 @@
 // API 接口定义 - 后端统一返回 { data, meta } 格式
 import { getToken, removeToken, removeUser, setPoints } from '../utils/storage'
-import { BASE_API, SITE_DOMAIN, isWechatBrowser } from '../utils/env'
+import { BASE_API, SITE_DOMAIN, isWechatBrowser, VENDURE_URL } from '../utils/env'
 import { getStoredAuthConfig } from './auth-config'
 import { shouldUseSso, buildSsoRedirectUrl } from '../utils/login-chain'
 import {
@@ -1526,4 +1526,61 @@ export async function tourAnswerMain(documentId: string, answer: string) {
 export async function tourClaimFinale(documentId: string) {
   const res = await request(`/zhao-point/v1/my/activity/${documentId}/tour/claim-finale`, { method: 'POST' })
   return res
+}
+
+// ==================== Vendure 只读接口（选品候选 / 在售商品） ====================
+// 直连 Vendure（生产经 e.joho.cn 反代），不走 Strapi 的 token/refresh 逻辑
+
+/**
+ * Vendure GET 请求：可选 vendure-token 头（渠道），非 2xx 抛错
+ */
+export async function vendureRequest(path: string, options: { token?: string; data?: any } = {}) {
+  const header: Record<string, string> = { 'Content-Type': 'application/json' }
+  if (options.token) header['vendure-token'] = options.token
+  const res: any = await new Promise((resolve, reject) => {
+    uni.request({
+      url: `${VENDURE_URL}${path}`,
+      method: 'GET',
+      data: options.data,
+      header,
+      success: (r: any) => resolve(r),
+      fail: (err: any) => reject(err),
+    })
+  })
+  if (res.statusCode < 200 || res.statusCode >= 300) {
+    throw new Error(res.data?.message || `Vendure 请求失败(${res.statusCode})`)
+  }
+  return res.data
+}
+
+/**
+ * 选品候选池 / 渠道在售商品
+ * - 配 collection → 候选池（不过滤上架状态，含未上架商品）
+ * - 否则 onsale=1 → 该渠道在售商品
+ */
+export async function fetchVendureCandidates(params: { token?: string; collection?: string; onsale?: boolean; take?: number }) {
+  const data: Record<string, any> = {}
+  if (params.collection) data.collection = params.collection
+  else if (params.onsale) data.onsale = 1
+  data.take = params.take ?? 50
+  return vendureRequest('/product-survey/candidates', { token: params.token, data })
+}
+
+/** 我的选品投票回显（需登录）：我 · 本渠道 · 本周期已勾选 */
+export async function getMySurveyVote(params: { roundKey: string; source?: string }) {
+  const data: Record<string, any> = { roundKey: params.roundKey }
+  if (params.source) data.source = params.source
+  const res = await request('/zhao-point/v1/my/product-survey/vote', { method: 'GET', data })
+  return res?.data ?? res
+}
+
+/** 提交选品投票（需登录）：body 不传 channel / userId，服务端按站点解析渠道 */
+export async function submitSurveyVote(payload: {
+  roundKey: string
+  source?: string
+  votes: Array<{ productId: string; productName: string; variantIds: string[]; collectionLabel: string }>
+  freeInput?: string
+}) {
+  const res = await request('/zhao-point/v1/my/product-survey/vote', { method: 'POST', data: payload })
+  return res?.data ?? res
 }

@@ -31,6 +31,11 @@ export const SITE_DOMAIN = resolveSiteDomain()
 // 认证模式切换为内部时，会同步读取配置，文件 services/auth-config.ts
 // 原 AUTH_MODE 环境变量已废弃
 
+// Vendure 只读接口基址（选品候选 / 在售商品），生产经 e.joho.cn 反代
+export const VENDURE_URL = import.meta.env?.VITE_VENDURE_URL ?? 'https://e.joho.cn'
+// Vendure Asset 静态资源前缀（候选接口返回的 image 是相对路径）
+export const VENDURE_ASSET_URL = `${VENDURE_URL}/assets`
+
 export type EnvType = 'wechat' | 'douyin' | 'alipay' | 'h5'
 
 export const getEnv = (): { type: EnvType } => {

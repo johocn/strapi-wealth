@@ -287,7 +287,7 @@ import { setupPageShare } from '../../utils/share'
 import { getSharePath, getInviteQuery } from '../../utils/invite'
 import { normalizeGoodsList } from '../../utils/promo-goods'
 import { formatDateTimeWithLabel } from '../../utils/promo-datetime'
-import { extractPosterSlogan } from '../../utils/poster-templates'
+import { extractPosterSlogan, pickCategoryChips } from '../../utils/poster-templates'
 
 /** 可渲染模块类型白名单（未知 type 不渲染） */
 const PROMO_TYPE_SET = new Set([
@@ -855,6 +855,18 @@ const posterImageFallback = computed(() => {
   }
 })
 
+// 海报品类 chips：取预订表单 categories 选项前 4 项
+const posterCategoryChips = computed(() => pickCategoryChips(activity.value?.formConfig))
+
+// 海报主推横条：取推荐位 custom 模块的 config.mainPush，缺失回落该模块标题
+const posterMainPush = computed(() => {
+  const customs = modules.value.filter((m: any) => m?.type === 'custom')
+  const slot = customs[customs.length - 1]
+  const cfg = slot?.config || {}
+  const push = typeof cfg.mainPush === 'string' ? cfg.mainPush.trim() : ''
+  return push || (typeof cfg.title === 'string' ? cfg.title.trim() : '')
+})
+
 const posterConfig = computed(() => {
   const rows = posterGoodsLines.value
   return {
@@ -870,6 +882,11 @@ const posterConfig = computed(() => {
       goods_2: rows[1] || '',
       goods_3: rows[2] || '',
       goods_4: rows[3] || '',
+      goods_category_1: posterCategoryChips.value[0],
+      goods_category_2: posterCategoryChips.value[1],
+      goods_category_3: posterCategoryChips.value[2],
+      goods_category_4: posterCategoryChips.value[3],
+      main_push: posterMainPush.value,
       // 主图兜底（无图 / 加载失败）时渲染的「公益理念宣传图」文案与配色
       image_fallback_slogan: posterImageFallback.value.slogan,
       image_fallback_sign: posterImageFallback.value.sign,

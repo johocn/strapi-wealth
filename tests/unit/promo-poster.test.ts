@@ -49,6 +49,15 @@ describe('促销海报取数', () => {
     expect(src).toContain('image_fallback_primary:')
     expect(src).toContain('image_fallback_accent:')
   })
+
+  it('透传品类 chips 与主推横条变量', () => {
+    expect(src).toContain('pickCategoryChips(')
+    expect(src).toContain('goods_category_1:')
+    expect(src).toContain('goods_category_2:')
+    expect(src).toContain('goods_category_3:')
+    expect(src).toContain('goods_category_4:')
+    expect(src).toContain('main_push:')
+  })
 })
 
 describe('兜底图广告语填充链', () => {

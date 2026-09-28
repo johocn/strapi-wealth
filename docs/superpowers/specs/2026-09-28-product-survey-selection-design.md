@@ -25,7 +25,7 @@
 | Strapi 侧已有渠道作用域范式 | `basic/plugins/zhao-point/server/src/routes/content-api.ts:33-46`（`channelScopeRoute` + `has-channel-scope` + `has-tenant-access`） |
 | Strapi 后台统计范式（纯查询、不落库、返回 `{summary, rows}`） | `basic/plugins/zhao-point/server/src/services/activity-stats.ts` |
 | C 端表单渲染范式（`multi` → chips） | `shao/pages/activity/promo.vue:86-90`；`basic/plugins/zhao-point/server/src/services/form.ts:7` |
-| 生产候选池 3 件未上架商品已建（id 80/81/82，含规格选项组 12/13） | Admin API 已创建：小龙虾 / 杨梅 / 黑猪肉 |
+| 生产候选池现状（2026-09-28 核实） | 商品 80/81/82（小龙虾 / 杨梅 / 黑猪肉，`enabled=false`，英文 slug）**仅属默认渠道 id1，未挂任何 Collection**；生产亦无 `*-unlisted-pool` 集合 → 候选池待运营按 §11.1 建立 |
 | 生产在售商品 11 件，slug 形态混乱（英文 / 中文 / 空） | Admin API 只读查询 |
 
 ## 3. 总体架构与数据流
@@ -110,7 +110,7 @@ NestJS `@Controller` REST，范式对齐 `eco-plugin` / `wechatpay-plugin`。**�
 
 | 字段 | 类型 | 说明 |
 |---|---|---|
-| channel | string，required | 渠道隔离标识，统一取 Vendure `channel.token`（如 `t1`、`__default_channel__`） |
+| channel | string，required | 渠道隔离标识，取 **Strapi 站点渠道 id**（`site.getAvailableChannels()` 的首个 id），由服务端解析，**前端不传** |
 | roundKey | string，required | ISO 周，如 `2026-W40` |
 | user | relation manyToOne → `plugin::users-permissions.user` | 登录身份 |
 | userId | integer，private | 冗余镜像（关系落 lnk 表，DB 跨表建不了唯一索引；沿用 `activity-signup` 做法） |
@@ -131,12 +131,12 @@ NestJS `@Controller` REST，范式对齐 `eco-plugin` / `wechatpay-plugin`。**�
 - `POST /zhao-point/v1/my/product-survey/vote`（`userRoute`）：
 
 ```json
-{ "channel": "t1", "roundKey": "2026-W40", "source": "act-xxx",
-  "votes": [{ "productId": "80", "productName": "鲜活小龙虾", "variantIds": ["201"] }],
+{ "roundKey": "2026-W40", "source": "act-xxx",
+  "votes": [{ "productId": "80", "productName": "鲜活小龙虾", "variantIds": ["201"], "collectionLabel": "零食" }],
   "freeInput": "想买无糖的" }
 ```
 
-服务端行为：**`channel` 不使用入参值** —— 由服务端按请求站点解析当前渠道（`site.getAvailableChannels()`，见 `controllers/point.ts:139-143`），入参 `channel` 仅作一致性校验，不一致返回 400；校验 `roundKey` 匹配 `^\d{4}-W\d{2}$`；身份一律取登录态 `ctx.state.user.id`（**不接受前端传 userId**）；**快照式覆盖** —— 事务内 upsert 列表内商品、删除本渠道本周期该用户不在列表中的旧票；`freeInput` 为空则删除该条，非空则 upsert；超过截止时间（见 §6.1 `deadline`）→ 403。
+服务端行为：**`channel` 由服务端解析** —— 取请求站点 `site.getAvailableChannels()` 首个渠道 id（见 `controllers/point.ts:139-143`），**完全忽略前端传值**，解析不到返回 400；校验 `roundKey` 匹配 `^\d{4}-W\d{2}$`；身份一律取登录态 `ctx.state.user.id`（**不接受前端传 userId**）；**快照式覆盖** —— 事务内 upsert 列表内商品、删除本渠道本周期该用户不在列表中的旧票；`freeInput` 为空则删除该条，非空则 upsert；超过截止时间（见 §6.1 `deadline`，按 `source` 查活动模块 `type==='survey'` 的 `config.deadline`）→ 403。
 
 ### 5.4 后台榜接口
 
@@ -161,7 +161,7 @@ NestJS `@Controller` REST，范式对齐 `eco-plugin` / `wechatpay-plugin`。**�
                   { "slug": "t1-unlisted-drink", "label": "饮品" }] }
 ```
 
-`channelToken` 即 Vendure `channel.token`，C 端直连 Vendure 时作为请求头 `vendure-token`；提交投票时该值同时作为入参 `channel` 供服务端校验（§5.3）。
+`channelToken` 即 Vendure `channel.token`，C 端直连 Vendure 时作为请求头 `vendure-token`（经 `https://e.joho.cn` 反代，CORS 由 Vendure 自身处理）；提交投票时不传 channel（服务端按站点解析，§5.3）。
 
 - **品类 tab 来源 = 配置里的多个 Collection**（一个 Collection 一个 tab；配 1 个则不显示 tab）。不引入 Facet（未上架商品的 facetValues 未必维护，会产生空 tab）。
 - 交互：标题 / 说明 / 周期倒计时 → 品类 tab → 商品卡片（图 / 名 / 价 / 变体 chips / 未上架标 / 圆形勾选）→ 底部自由输入 → 吸底「已勾选 N 件 · 提交」。
@@ -173,7 +173,7 @@ NestJS `@Controller` REST，范式对齐 `eco-plugin` / `wechatpay-plugin`。**�
 - config 增加 `source: "vendure"` + `channelToken` + `collectionSlug?`（空 = 该渠道全部在售，接口按 `onsale=1` 调用）+ `limit`（默认 8）。
 - 渲染：商品卡（图 / 名 / 价 / 规格）+ `linkAvailable` 为真时显示「查看详情 ›」（跳 `/pkg-product/pages/detail?slug=`）。
 - `priceConfigured=false` → 显示「到店询价」，不显示 ¥0。
-- `image=null` → 缺省图（复用市集缺省图）。
+- `image=null` → 缺省图（复用市集缺省图）。出参 `image` 是 Vendure 相对路径，C 端需拼 `https://e.joho.cn/assets/{image}`。
 - **预订动作不变**：仍走活动内报名（预订网址 = promo 页自身），不接 vshop 下单流。
 - 过渡策略：config 无 `source` 时仍渲染既有 `goodsList`，避免已上线活动立刻空白；SOP 要求新一期活动必须配 `source: "vendure"`。**不新增开关字段，只是同一 config 的两个分支**。
 
@@ -217,7 +217,7 @@ NestJS `@Controller` REST，范式对齐 `eco-plugin` / `wechatpay-plugin`。**�
 
 ## 9. 验收要点
 
-1. 未上架商品（80/81/82）能从候选 Collection 正常返回，含图 / 价 / 变体。
+1. 未上架商品能从候选 Collection 正常返回，含图 / 价 / 变体。**（生产候选池待运营建；机制已用 collection 17 验证：返回 `enabled:false` 商品，证明未过滤 `enabled`）**
 2. 同一账号取消勾选后再提交，该商品在本渠道的得票人数 -1。
 3. 换账号对同商品投票，得票人数 +1；同账号在另一渠道投票，两渠道票数互不影响。
 4. `slug` 为空或中文的商品，出参 `link=null`、`linkAvailable=false`。

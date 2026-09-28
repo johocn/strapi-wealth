@@ -725,6 +725,23 @@ git commit -m "docs(ops): 每周市集文案包与运营 SOP 存档"
 - H5 发布：`deploy-h5.ps1` → `SYNC_OK`；`https://v.joho.cn/static/youmeihui-weekly-market-default.jpg` 返回 200（255556 字节，与本地一致）。
 - 旧活动回归取样：`iuf1iy42d6h61b0ptzg37q4q`（免费领西瓜｜优美惠双节钜惠），其 `formConfig` 为空、无 `custom` 模块 `mainPush` → chip 与主推横条均不绘制，符合「不填不绘制」预期。
 
-### 未闭环项（不留 TODO，明确前置条件）
+### Task 8 Step 1 补做（2026-09-28）
 
-- **「配了新变量」的线上海报目视复测未做**：需要一个已配置 `categories`（≥4 项）与 `custom.mainPush` 的活动，该内容属 Task 8 Step 1-3 的运营后台配置，尚未创建。配置完成后按 Task 7 Step 2 复核即可。
+- 生产新建 `activity-series`「优美惠市集·每周市集」（`documentId=eh688e5b8qnqd8z5r4uk85u1`，`id=1`，`status=active`，未配 `schedule`）。
+- 第一期活动经 `PUT /adm/activities/wi86utfu1p12hcjqqbjqjqon` 写入 `belongsToSeries` 归属该系列；`GET /series` 返回该系列 `sessionCount=1`。
+- 复读确认：第一期 8 模块顺序与 `promoTemplate=sale`、`status=signup_open` 未受影响；其余 3 个活动状态不变（13 `signup_open` / 11 `archived` / 1 `ended`）。
+
+### 新变量线上海报复测（2026-09-28 闭环）
+
+前置条件已满足：第一期活动 `wi86utfu1p12hcjqqbjqjqon`（id 14）已配 `formConfig.categories`（8 项）与末位 `custom` 的 `config.mainPush`。
+
+| 样本 | 活动 | 结论 |
+|---|---|---|
+| 配了新变量 | `wi86utfu1p12hcjqqbjqjqon` | 按新位移渲染：4 枚品类 chip（蔬菜/水果/肉禽蛋/水产海鲜）+ 主推横条（`本周主推：本地散养土鸡蛋 ￥12.8/斤`）+ 商品行 + 二维码 + 底部落款；单行无折行，底部留白正常 |
+| 未配置新变量 | `iuf1iy42d6h61b0ptzg37q4q`（免费领西瓜） | chip 与主推横条整块不绘制（含底色），其余元素按新位移渲染，无裁切 |
+
+复测中发现并已修复的真实缺陷：`mainPush` 写 36 字会折行压到 `goods_1`，改写为 19 字后正常；该约束已写入 `2026-09-28-supermarket-weekly-preorder-copy.md` §四。
+
+### 未闭环项
+
+无。Task 1-8 全部闭环；Task 2 Step 3-4 与 Task 6 Step 3 的本地验证已按上文「与计划原文的偏离」第 2 条前移到生产执行。

@@ -590,7 +590,7 @@ const promoShareTemplate = {
   backgroundColor: "#FFFFFF",
   backgroundMode: "cover",
   requiredVariables: ["title", "main_image", "qr_code"],
-  optionalVariables: ["activity_start", "activity_end", "activity_venue", "goods_1", "goods_2", "goods_3", "goods_4", "image_fallback_slogan", "image_fallback_sign", "image_fallback_primary", "image_fallback_accent"],
+  optionalVariables: ["activity_start", "activity_end", "activity_venue", "goods_1", "goods_2", "goods_3", "goods_4", "goods_category_1", "goods_category_2", "goods_category_3", "goods_category_4", "main_push", "image_fallback_slogan", "image_fallback_sign", "image_fallback_primary", "image_fallback_accent"],
   elements: [
     baseElement({
       elementKey: "gradient_bar",
@@ -612,7 +612,7 @@ const promoShareTemplate = {
       x: 30,
       y: 40,
       width: 540,
-      height: 465,
+      height: 404,
       borderRadius: 12,
       zIndex: 2,
       sortOrder: 2
@@ -624,7 +624,7 @@ const promoShareTemplate = {
       variableName: "title",
       defaultValue: "活动钜惠",
       x: 30,
-      y: 530,
+      y: 460,
       width: 540,
       height: 44,
       fontSize: 34,
@@ -641,7 +641,7 @@ const promoShareTemplate = {
       isVariable: true,
       variableName: "activity_start",
       x: 30,
-      y: 582,
+      y: 512,
       width: 540,
       height: 28,
       fontSize: 24,
@@ -657,7 +657,7 @@ const promoShareTemplate = {
       isVariable: true,
       variableName: "activity_end",
       x: 30,
-      y: 614,
+      y: 544,
       width: 540,
       height: 28,
       fontSize: 24,
@@ -673,7 +673,7 @@ const promoShareTemplate = {
       isVariable: true,
       variableName: "activity_venue",
       x: 30,
-      y: 654,
+      y: 580,
       width: 540,
       height: 28,
       fontSize: 24,
@@ -684,12 +684,102 @@ const promoShareTemplate = {
       sortOrder: 6
     }),
     baseElement({
+      elementKey: "category_chip_1",
+      elementType: "text",
+      isVariable: true,
+      variableName: "goods_category_1",
+      x: 30,
+      y: 614,
+      width: 126,
+      height: 32,
+      fontSize: 18,
+      fontColor: "#C2410C",
+      textAlign: "center",
+      lineHeight: 1.4,
+      elementBgColor: "#FDECE3",
+      borderRadius: 16,
+      zIndex: 10,
+      sortOrder: 7
+    }),
+    baseElement({
+      elementKey: "category_chip_2",
+      elementType: "text",
+      isVariable: true,
+      variableName: "goods_category_2",
+      x: 168,
+      y: 614,
+      width: 126,
+      height: 32,
+      fontSize: 18,
+      fontColor: "#C2410C",
+      textAlign: "center",
+      lineHeight: 1.4,
+      elementBgColor: "#FDECE3",
+      borderRadius: 16,
+      zIndex: 10,
+      sortOrder: 8
+    }),
+    baseElement({
+      elementKey: "category_chip_3",
+      elementType: "text",
+      isVariable: true,
+      variableName: "goods_category_3",
+      x: 306,
+      y: 614,
+      width: 126,
+      height: 32,
+      fontSize: 18,
+      fontColor: "#C2410C",
+      textAlign: "center",
+      lineHeight: 1.4,
+      elementBgColor: "#FDECE3",
+      borderRadius: 16,
+      zIndex: 10,
+      sortOrder: 9
+    }),
+    baseElement({
+      elementKey: "category_chip_4",
+      elementType: "text",
+      isVariable: true,
+      variableName: "goods_category_4",
+      x: 444,
+      y: 614,
+      width: 126,
+      height: 32,
+      fontSize: 18,
+      fontColor: "#C2410C",
+      textAlign: "center",
+      lineHeight: 1.4,
+      elementBgColor: "#FDECE3",
+      borderRadius: 16,
+      zIndex: 10,
+      sortOrder: 10
+    }),
+    baseElement({
+      elementKey: "main_push",
+      elementType: "text",
+      isVariable: true,
+      variableName: "main_push",
+      x: 30,
+      y: 652,
+      width: 540,
+      height: 44,
+      fontSize: 22,
+      fontColor: "#7C2D12",
+      textAlign: "center",
+      lineHeight: 1.5,
+      elementBgColor: "#FDECE3",
+      borderRadius: 8,
+      zIndex: 10,
+      sortOrder: 11
+    }),
+    baseElement({
       elementKey: "goods_1",
       elementType: "text",
       isVariable: true,
       variableName: "goods_1",
       x: 30,
-      y: 692,
+      y: 702,
       width: 540,
       height: 26,
       fontSize: 22,
@@ -697,7 +787,7 @@ const promoShareTemplate = {
       textAlign: "left",
       lineHeight: 1.5,
       zIndex: 10,
-      sortOrder: 7
+      sortOrder: 12
     }),
     baseElement({
       elementKey: "goods_2",
@@ -705,7 +795,7 @@ const promoShareTemplate = {
       isVariable: true,
       variableName: "goods_2",
       x: 30,
-      y: 720,
+      y: 730,
       width: 540,
       height: 26,
       fontSize: 22,
@@ -713,7 +803,7 @@ const promoShareTemplate = {
       textAlign: "left",
       lineHeight: 1.5,
       zIndex: 10,
-      sortOrder: 8
+      sortOrder: 13
     }),
     baseElement({
       elementKey: "goods_3",
@@ -721,7 +811,7 @@ const promoShareTemplate = {
       isVariable: true,
       variableName: "goods_3",
       x: 30,
-      y: 748,
+      y: 758,
       width: 540,
       height: 26,
       fontSize: 22,
@@ -729,7 +819,7 @@ const promoShareTemplate = {
       textAlign: "left",
       lineHeight: 1.5,
       zIndex: 10,
-      sortOrder: 9
+      sortOrder: 14
     }),
     baseElement({
       elementKey: "goods_4",
@@ -737,7 +827,7 @@ const promoShareTemplate = {
       isVariable: true,
       variableName: "goods_4",
       x: 30,
-      y: 776,
+      y: 786,
       width: 540,
       height: 26,
       fontSize: 22,
@@ -745,7 +835,7 @@ const promoShareTemplate = {
       textAlign: "left",
       lineHeight: 1.5,
       zIndex: 10,
-      sortOrder: 10
+      sortOrder: 15
     }),
     baseElement({
       elementKey: "qr_code",
@@ -754,12 +844,12 @@ const promoShareTemplate = {
       variableName: "qr_code",
       qrContentMode: "direct",
       x: 215,
-      y: 812,
+      y: 820,
       width: 170,
       height: 170,
       qrSize: 170,
       zIndex: 10,
-      sortOrder: 11
+      sortOrder: 16
     }),
     baseElement({
       elementKey: "footer_text",
@@ -767,7 +857,7 @@ const promoShareTemplate = {
       isVariable: false,
       content: "长按识别二维码 · 查看活动详情",
       x: 30,
-      y: 994,
+      y: 996,
       width: 540,
       height: 30,
       fontSize: 22,
@@ -775,7 +865,7 @@ const promoShareTemplate = {
       textAlign: "center",
       lineHeight: 1.5,
       zIndex: 10,
-      sortOrder: 12
+      sortOrder: 17
     })
   ]
 };

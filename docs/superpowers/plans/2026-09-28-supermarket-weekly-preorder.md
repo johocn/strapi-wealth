@@ -287,11 +287,16 @@ node scripts/seed-poster-templates.cjs
 
 - [ ] **Step 4: 校验落库结果与内置模板一致**
 
+打开后台「海报模板 → 促销活动海报」编辑器目视核对：元素数 17；一行 4 枚暖底 chip（`品类chip1..4`）位于场所行与商品行之间；其下一条满宽主推横条；底部提示与二维码未被裁切。
+
+再与服务端返回逐值比对（登录后台拿 token 后）：
+
 ```powershell
-node -e "fetch('http://127.0.0.1:1337/api/zhao-studio/v1/admin/poster-templates',{headers:{Authorization:'Bearer '+process.env.TOKEN}}).then(r=>r.json()).then(j=>console.log(JSON.stringify(j).slice(0,300)))"
+$env:TOKEN="<后台 admin token>"
+node -e "fetch('http://127.0.0.1:1337/api/zhao-studio/v1/admin/poster-templates',{headers:{Authorization:'Bearer '+process.env.TOKEN}}).then(r=>r.json()).then(j=>{const t=(j.data||j).find(x=>x.code==='promo_share');console.log(t&&t.optionalVariables)})"
 ```
 
-或直接打开后台「海报模板 → 促销活动海报」页面，确认画布上一行出现 4 枚暖底 chip 与 1 条满宽主推横条，且底部提示未被裁切。
+预期输出含 `goods_category_1`、`goods_category_4`、`main_push`。
 
 - [ ] **Step 5: 提交（`basic` 仓库单独提交）**
 

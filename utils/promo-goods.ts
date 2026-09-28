@@ -1,5 +1,8 @@
 // 商户促销活动 —— 商品清单归一化与价格文案（纯函数，供 promo-goods.vue 使用）
 
+/** 商品缩略图缺省占位：优美惠市集每周市集品牌图（随 C 端发布，不走运行时接口） */
+export const PROMO_DEFAULT_GOODS_IMAGE = '/static/youmeihui-weekly-market-default.jpg'
+
 export interface PromoGood {
   name: string
   image: string

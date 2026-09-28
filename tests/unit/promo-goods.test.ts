@@ -1,4 +1,8 @@
-import { normalizeGoodsList, goodsPriceText } from '../../utils/promo-goods'
+import { readFileSync } from 'fs'
+import { resolve } from 'path'
+import { normalizeGoodsList, goodsPriceText, PROMO_DEFAULT_GOODS_IMAGE } from '../../utils/promo-goods'
+
+const goodsSrc = readFileSync(resolve(__dirname, '../../components/promo/promo-goods.vue'), 'utf8')
 
 describe('promo-goods', () => {
   describe('normalizeGoodsList', () => {
@@ -43,5 +47,16 @@ describe('promo-goods', () => {
       expect(goodsPriceText({ originPrice: 80, promoPrice: null })).toEqual({ origin: '¥80', promo: '' })
       expect(goodsPriceText({ originPrice: null, promoPrice: 9.9 })).toEqual({ origin: '', promo: '¥9.9' })
     })
+  })
+})
+
+describe('商品缩略图缺省占位', () => {
+  it('缺省图指向 static 下的每周市集品牌图', () => {
+    expect(PROMO_DEFAULT_GOODS_IMAGE).toBe('/static/youmeihui-weekly-market-default.jpg')
+  })
+
+  it('无图商品渲染缺省图而非留空', () => {
+    expect(goodsSrc).toContain('<image v-else :src="PROMO_DEFAULT_GOODS_IMAGE"')
+    expect(goodsSrc).toContain('PROMO_DEFAULT_GOODS_IMAGE')
   })
 })

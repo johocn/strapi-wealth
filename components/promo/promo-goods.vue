@@ -9,6 +9,7 @@
         class="goods-image"
         lazy-load
       />
+      <image v-else :src="PROMO_DEFAULT_GOODS_IMAGE" mode="aspectFill" class="goods-image" lazy-load />
       <view class="goods-body">
         <text class="goods-name">{{ g.name }}</text>
         <text v-if="g.desc" class="goods-desc">{{ g.desc }}</text>
@@ -30,7 +31,7 @@
 
 <script setup lang="ts">
 import { computed } from 'vue'
-import { normalizeGoodsList, goodsPriceText } from '../../utils/promo-goods'
+import { normalizeGoodsList, goodsPriceText, PROMO_DEFAULT_GOODS_IMAGE } from '../../utils/promo-goods'
 import { resolveMediaUrl } from '../../utils/env'
 
 const props = defineProps<{

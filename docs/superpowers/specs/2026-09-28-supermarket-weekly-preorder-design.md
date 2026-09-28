@@ -43,11 +43,13 @@
 | 1 | `cover` | 头图＝缺省图；主标题「你想吃什么，我们进什么」；副标题「周四 24:00 预订截止·周五到店取货」 |
 | 2 | `notice` | 红线提示：**不预订不配货**（常驻，不可关） |
 | 3 | `images` | 本期征集说明图组（每期换图） |
-| 4 | `purpose` | 征集区说明：「勾选你想要的品类，我们照单进货」 |
+| 4 | `custom` | 征集区说明（`config.title` + `config.html`）：「勾选你想要的品类，我们照单进货」 |
 | 5 | `goods` | **开卖区**：已开售商品行（缩略图缺省时用缺省图） |
-| 6 | `purpose` | 开卖区底部「推荐位」一条（主推话术） |
+| 6 | `custom` | 开卖区底部「推荐位」一条：`config.title` + `config.mainPush`（主推话术） |
 | 7 | `info` | 取货信息：时间轴、取货地点、联系方式 |
 | 8 | `floatContact` | 悬浮联系入口（微信/电话/留言） |
+
+模块 4/6 用 `custom` 而非 `purpose`：`promo-purpose.vue` 只渲染 `activity.purpose` 单一文本，放两个 `purpose` 会让「征集说明」和「推荐位话术」被迫同文；`custom` 的 `config.title`/`config.html`/`config.mainPush` 每模块独立可取，满足文案包「一期一填、互不覆盖」。
 
 表单配置（站内 `formConfig`，字段类型全部为现有能力）：
 
@@ -73,49 +75,59 @@
 
 | 槽位 | 落点 | 说明 |
 |---|---|---|
-| 征集说明 | 模块 3/4 | 本周征集什么、为什么值得预订 |
-| 到货播报 | 模块 6 + 群分享 | 上周到货情况、本周主推 |
-| 推荐位话术 | 模块 6 | 主推商品的推荐理由 |
+| 征集说明 | 模块 4 `custom.html` | 本周征集什么、为什么值得预订 |
+| 到货播报 | 模块 6 `custom.html` + 群分享 | 上周到货情况、本周主推 |
+| 推荐位话术 | 模块 6 `custom.mainPush`（同时供海报主推横条） | 主推商品的推荐理由 |
 | 群分享话术 | 社群/朋友圈 | 配合海报分享的一段话 |
 | 取货提醒 | 模块 7 | 周五取货时间、地点、凭证 |
 
 ## 3. 海报模板（`promo_share`，600×1050）
 
-复用现有 `promo_share`，**新增 2 个可选元素**；不填则整块不绘制（沿用现有 optionalVariables 语义）。
+复用现有 `promo_share`，**新增 5 个可选 text 元素**（4 枚品类 chip + 1 条主推横条）；不填则整块不绘制（`drawText` 在 `resolvedContent` 为空时早退，连底色也不画，沿用现有可选变量语义）。
 
-### 新增变量
+### 新增变量与取值来源
 
 `optionalVariables` 追加：`goods_category_1` ~ `goods_category_4`、`main_push`。
 
-### 新增元素
+| 变量 | 来源（C 端 `promo.vue`） |
+|---|---|
+| `goods_category_1..4` | 活动 `formConfig` 中 `categories` 字段的 `options` 前 4 项；不足 4 项时余下留空 |
+| `main_push` | 模块 6 `custom` 的 `config.mainPush`，缺失时回落该模块 `config.title` |
 
-| elementKey | 名称 | 类型 | 变量 | 几何 | 样式 |
-|---|---|---|---|---|---|
-| `category_chips` | 品类 chips 带 | text（单行） | `goods_category_1..4` | x30 y630 w540 h32 | 最多 4 枚等宽 chip（126×32，间距 12），底 `#FDECE3`，字 `#C2410C` 18px，圆角 16，居中；4 个变量全空则整条不绘制 |
-| `main_push` | 主推横条 | text（单行） | `main_push` | x30 y668 w540 h44 | 底 `#FDECE3`，左侧 6px 竖条 `#C2410C`，字 `#7C2D12` 22px，左内边距 18，圆角 8；变量为空则不绘制 |
+### 新增元素（5 个，均为 `isVariable: true` 的 text）
+
+| elementKey | 名称 | 变量 | x | y | w | h | 样式 |
+|---|---|---|---|---|---|---|---|
+| `category_chip_1` | 品类 chip 1 | `goods_category_1` | 30 | 614 | 126 | 32 | 底 `#FDECE3`，字 `#C2410C` 18px，圆角 16，居中 |
+| `category_chip_2` | 品类 chip 2 | `goods_category_2` | 168 | 614 | 126 | 32 | 同上 |
+| `category_chip_3` | 品类 chip 3 | `goods_category_3` | 306 | 614 | 126 | 32 | 同上 |
+| `category_chip_4` | 品类 chip 4 | `goods_category_4` | 444 | 614 | 126 | 32 | 同上 |
+| `main_push` | 主推横条 | `main_push` | 30 | 652 | 540 | 44 | 底 `#FDECE3`，字 `#7C2D12` 22px，圆角 8，居中 |
+
+chip 间距 12（126 + 12 = 138，x 依次 30/168/306/444，最右 444+126=570，右边距 30），一行最多 4 枚。`elementBgColor` 用于 text 元素在 `activity_share.main_info_badge` 已有先例，渲染器不改。
 
 ### 既有元素位移（为新增两块腾出纵向空间）
 
-`main_image` 高度 465 → 410，其后元素整体上移，最终坐标如下（x 均 30、w 均 540，除二维码）：
+`main_image` 高度 465 → 404，其后元素整体上移，最终坐标如下（x 均 30、w 均 540，除二维码）：
 
-| 元素 | 原 y | 新 y | 新高度 |
-|---|---|---|---|
-| `gradient_bar` | 0 | 0 | 6 |
-| `main_image` | 40 | 40 | **410**（原 465） |
-| `title` | 530 | 474 | 44 |
-| `activity_start` | 582 | 526 | 28 |
-| `activity_end` | 614 | 558 | 28 |
-| `activity_venue` | 654 | 596 | 28 |
-| `category_chips` | — | 630 | 32（新增） |
-| `main_push` | — | 668 | 44（新增） |
-| `goods_1` | 692 | 718 | 26 |
-| `goods_2` | 720 | 746 | 26 |
-| `goods_3` | 748 | 774 | 26 |
-| `goods_4` | 776 | 802 | 26 |
-| `qr_code` | 812 | 838 | 170（x215 w170） |
-| `footer_text` | 994 | 1014 | 30 |
+| 元素 | 原 y | 新 y | 新高度 | 新底边 |
+|---|---|---|---|---|
+| `gradient_bar` | 0 | 0 | 6 | 6 |
+| `main_image` | 40 | 40 | **404**（原 465） | 444 |
+| `title` | 530 | 460 | 44 | 504 |
+| `activity_start` | 582 | 512 | 28 | 540 |
+| `activity_end` | 614 | 544 | 28 | 572 |
+| `activity_venue` | 654 | 580 | 28 | 608 |
+| `category_chip_1..4` | — | 614 | 32 | 646（新增） |
+| `main_push` | — | 652 | 44 | 696（新增） |
+| `goods_1` | 692 | 702 | 26 | 728 |
+| `goods_2` | 720 | 730 | 26 | 756 |
+| `goods_3` | 748 | 758 | 26 | 784 |
+| `goods_4` | 776 | 786 | 26 | 812 |
+| `qr_code` | 812 | 820 | 170（x215 w170） | 990 |
+| `footer_text` | 994 | 996 | 30 | 1026 |
 
-底线：`footer_text` 底边 1044 ≤ 1050，画布不溢出。
+约束（现有单测 `poster-templates-promo-share.test.ts` 已断言，必须继续满足）：所有元素在画布内、STACK 竖向不重叠、**底部留白 ≥ 24**（1050 − 1026 = 24，正好达标）。
 
 ### 落库与代码同步
 

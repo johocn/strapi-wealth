@@ -83,6 +83,12 @@
           <PromoFaq v-else-if="m.type === 'faq'" :activity="activity" :config="m.config" />
           <PromoCustom v-else-if="m.type === 'custom'" :activity="activity" :config="m.config" />
           <PromoGoods v-else-if="m.type === 'goods'" :activity="activity" :config="m.config" />
+          <PromoSurvey
+            v-else-if="m.type === 'survey'"
+            :activity="activity"
+            :config="m.config"
+            @need-login="onSurveyNeedLogin"
+          />
           <PromoPurpose v-else-if="m.type === 'purpose'" :activity="activity" :config="m.config" />
           <PromoNotice v-else-if="m.type === 'notice'" :activity="activity" :config="m.config" />
           <PromoRewards v-else-if="m.type === 'rewards'" :rewards="activity.rewardConfig" />
@@ -661,6 +667,7 @@ import PromoMessage from '../../components/promo/promo-message.vue'
 import PromoCustomPage from '../../components/promo/promo-custom-page.vue'
 import FloatContact from '../../components/promo/float-contact.vue'
 import PromoGoods from '../../components/promo/promo-goods.vue'
+import PromoSurvey from '../../components/promo/promo-survey.vue'
 import PromoPurpose from '../../components/promo/promo-purpose.vue'
 import PromoNotice from '../../components/promo/promo-notice.vue'
 import MessageDialog from '../../components/promo/message-dialog.vue'
@@ -1467,7 +1474,7 @@ const usedCapacity = computed(() => activity.value?.usedCapacity ?? 0)
 const PROMO_TYPE_SET = new Set([
   'cover', 'info', 'rich', 'highlights', 'speakers', 'agenda', 'images', 'faq', 'custom',
   'rewards', 'contact', 'message', 'floatContact',
-  'goods', 'purpose', 'notice',
+  'goods', 'purpose', 'notice', 'survey',
 ])
 const modules = computed(() =>
   (Array.isArray(activity.value?.promoModules) ? activity.value.promoModules : [])
@@ -1524,6 +1531,23 @@ function onPromoContact(type: 'wechat' | 'phone' | 'card' | 'message') {
   } else {
     openMessagePanel()
   }
+}
+
+// ===== 选品调研登录引导 =====
+// 未登录点击提交：本页统一弹登录引导；登录返回后（onShow）重新触发提交
+let surveyRetry: (() => void) | null = null
+
+function onSurveyNeedLogin(retry?: () => void) {
+  surveyRetry = typeof retry === 'function' ? retry : null
+  uni.showModal({
+    title: '提示',
+    content: '登录后即可提交选品',
+    confirmText: '去登录',
+    success: (res) => {
+      if (res.confirm) uni.navigateTo({ url: '/pages/login/login' })
+      else surveyRetry = null
+    },
+  })
 }
 
 /** 所属活动系列（后端 populate 填充 belongsToSeries） */
@@ -2179,6 +2203,12 @@ onShow(() => {
     restoreSignupState()
     setupActivityShare()
     refreshShare()
+  }
+  // 选品调研：登录返回后补交此前被拦下的提交
+  if (surveyRetry) {
+    const retry = surveyRetry
+    surveyRetry = null
+    retry()
   }
 })
 

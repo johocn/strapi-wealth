@@ -6,11 +6,11 @@ import { resolve } from 'node:path'
 const root = resolve(__dirname, '../..')
 const read = (p: string) => readFileSync(resolve(root, p), 'utf8')
 
-/** C 端白名单期望清单（16 类 = 管理端 15 类 + floatContact） */
+/** C 端白名单期望清单（17 类 = 管理端 16 类 + floatContact） */
 const EXPECTED = [
   'cover', 'info', 'rich', 'highlights', 'speakers', 'agenda', 'images',
   'rewards', 'contact', 'message', 'faq', 'custom', 'floatContact',
-  'goods', 'purpose', 'notice',
+  'goods', 'purpose', 'notice', 'survey',
 ]
 
 /** type → 组件文件（floatContact 复用通用悬浮组件，文件名不遵循 promo- 前缀） */

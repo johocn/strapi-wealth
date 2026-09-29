@@ -90,22 +90,35 @@ function openLink(g: any) {
 
 async function loadVendure() {
   const cfg = props.config || {}
+  // 运营端已选定商品：只按 config.productIds 顺序展示（优先级高于 collection/onsale）
+  const ids: string[] = Array.isArray(cfg.productIds) ? cfg.productIds.map((i: any) => String(i)).filter(Boolean) : []
   vLoading.value = true
   vError.value = false
   try {
     const res = await fetchVendureCandidates({
       token: cfg.channelToken,
-      collection: cfg.collectionSlug || undefined,
-      onsale: cfg.collectionSlug ? undefined : true,
+      productIds: ids.length ? ids : undefined,
+      collection: ids.length ? undefined : cfg.collectionSlug || undefined,
+      onsale: ids.length || cfg.collectionSlug ? undefined : true,
       take: Number(cfg.limit) || 8,
     })
-    vendureGoods.value = Array.isArray(res?.products) ? res.products : []
+    const list = Array.isArray(res?.products) ? res.products : []
+    vendureGoods.value = ids.length ? reorderByIds(list, ids) : list
   } catch (e) {
     vError.value = true
     vendureGoods.value = []
   } finally {
     vLoading.value = false
   }
+}
+
+/** 兜底重排：服务端已按 productIds 定序返回，此处防旧版服务端/缓存导致顺序错乱 */
+function reorderByIds(list: any[], ids: string[]) {
+  const map = new Map(list.map((g: any) => [String(g.id), g]))
+  const ordered = ids.map(id => map.get(id)).filter(Boolean)
+  if (!ordered.length) return list
+  const picked = new Set(ids)
+  return [...ordered, ...list.filter((g: any) => !picked.has(String(g.id)))]
 }
 
 onMounted(() => {

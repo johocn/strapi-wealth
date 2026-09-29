@@ -817,7 +817,7 @@ export async function claimActivityShare(payload: { action?: string; channelId?:
 }
 
 // 查询分享领分状态（canClaim/points/remainingMs/hasLanding/waitLanding），用于任务中心/活动页按钮点亮与置灰；按维度查询
-export async function getShareClaimStatus(opts?: { dimType?: string; dimId?: string | number; activityId?: string } | string) {
+export async function getShareClaimStatus(opts?: { action?: string; dimType?: string; dimId?: string | number; activityId?: string } | string) {
   const p: Record<string, string> = {}
   if (typeof opts === 'string') {
     p.activityId = opts
@@ -825,6 +825,7 @@ export async function getShareClaimStatus(opts?: { dimType?: string; dimId?: str
     const o = opts || {}
     const dimType = o.dimType || (o.activityId ? 'activity' : undefined)
     const dimId = o.dimId != null ? String(o.dimId) : (o.activityId ?? undefined)
+    if (o.action) p.action = o.action
     if (dimType) p.dimType = dimType
     if (dimId != null) p.dimId = dimId
   }
@@ -1496,7 +1497,8 @@ export const partnerApi = {
 /** 剧本主视角：剧目信息 + 当前用户进度；未报名/非剧本游由后端抛业务码 */
 export async function getTourStory(documentId: string) {
   const res = await request(`/zhao-point/v1/my/activity/${documentId}/tour/story`, { method: 'GET' })
-  return res
+  // 后端统一响应体为 { data, meta }，此处解包 data 供页面直接读取 roles/progress
+  return res?.data ?? res
 }
 /** 选择角色：幂等，可改选 */
 export async function tourChooseRole(documentId: string, role: string) {
@@ -1504,7 +1506,7 @@ export async function tourChooseRole(documentId: string, role: string) {
     method: 'POST',
     data: { role },
   })
-  return res
+  return res?.data ?? res
 }
 /** 到站打卡：幂等，发站点积分 */
 export async function tourCheckinStation(documentId: string, stationOrder: number) {
@@ -1512,7 +1514,7 @@ export async function tourCheckinStation(documentId: string, stationOrder: numbe
     method: 'POST',
     data: { stationOrder },
   })
-  return res
+  return res?.data ?? res
 }
 /** 主线谜底答题：答对发主线积分（返回 { correct, already, progress }） */
 export async function tourAnswerMain(documentId: string, answer: string) {
@@ -1520,12 +1522,12 @@ export async function tourAnswerMain(documentId: string, answer: string) {
     method: 'POST',
     data: { answer },
   })
-  return res
+  return res?.data ?? res
 }
 /** 终章兑奖：站点集齐 + 谜底破解后发放终章积分（返回 { already, progress }） */
 export async function tourClaimFinale(documentId: string) {
   const res = await request(`/zhao-point/v1/my/activity/${documentId}/tour/claim-finale`, { method: 'POST' })
-  return res
+  return res?.data ?? res
 }
 
 // ==================== Vendure 只读接口（选品候选 / 在售商品） ====================
@@ -1554,13 +1556,16 @@ export async function vendureRequest(path: string, options: { token?: string; da
 }
 
 /**
- * 选品候选池 / 渠道在售商品
+ * 选品候选池 / 渠道在售商品 / 运营指定商品（三选一，优先级同服务端）
+ * - 配 productIds → 运营端已选定的商品，服务端按传入顺序返回（含未上架）
  * - 配 collection → 候选池（不过滤上架状态，含未上架商品）
  * - 否则 onsale=1 → 该渠道在售商品
  */
-export async function fetchVendureCandidates(params: { token?: string; collection?: string; onsale?: boolean; take?: number }) {
+export async function fetchVendureCandidates(params: { token?: string; productIds?: string[]; collection?: string; onsale?: boolean; take?: number }) {
   const data: Record<string, any> = {}
-  if (params.collection) data.collection = params.collection
+  const ids = (params.productIds || []).filter(Boolean)
+  if (ids.length) data.productIds = ids.join(',')
+  else if (params.collection) data.collection = params.collection
   else if (params.onsale) data.onsale = 1
   data.take = params.take ?? 50
   return vendureRequest('/product-survey/candidates', { token: params.token, data })

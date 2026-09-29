@@ -17,8 +17,8 @@
 
     <!-- 卡片区：加载 / 失败重试 / 空态 / 列表（失败仅影响本模块） -->
     <view v-if="loading" class="survey-state"><text>加载中...</text></view>
-    <view v-else-if="loadError" class="survey-state survey-state--retry" @click="load">
-      <text>加载失败，点击重试</text>
+    <view v-else-if="loadErrMsg" class="survey-state survey-state--retry" @click="load">
+      <text>{{ loadErrMsg }}</text>
     </view>
     <view v-else-if="!currentProducts.length" class="survey-state"><text>本期暂无候选</text></view>
     <view v-else>
@@ -100,7 +100,9 @@ const collections = computed(() => {
 const productsByTab = ref<Record<string, any[]>>({})
 const activeTab = ref(0)
 const loading = ref(true)
-const loadError = ref(false)
+// 失败文案：400 = 渠道/参数配置有误（服务端已明确回传原因），对用户统一为「暂不可用」；
+// 其余（网络/5xx）提示可重试。原始原因打 console 便于运营排查。
+const loadErrMsg = ref('')
 
 /** 已勾选：productId -> 投票项 */
 const selected = ref<Record<string, { productId: string; productName: string; variantIds: string[]; collectionLabel: string }>>({})
@@ -140,7 +142,7 @@ async function load() {
     return
   }
   loading.value = true
-  loadError.value = false
+  loadErrMsg.value = ''
   try {
     const res = await Promise.all(
       collections.value.map((c: any) =>
@@ -152,8 +154,11 @@ async function load() {
       map[c.slug] = Array.isArray(res[i]?.products) ? res[i].products : []
     })
     productsByTab.value = map
-  } catch (e) {
-    loadError.value = true
+  } catch (e: any) {
+    // 400：渠道 token / Collection 配置有误（服务端回传确切原因），不向用户暴露技术细节
+    const badConfig = e?.statusCode === 400
+    if (badConfig) console.warn('[promo-survey] Vendure 候选商品配置有误：', e?.message)
+    loadErrMsg.value = badConfig ? '选品暂时无法展示，请联系客服' : '加载失败，点击重试'
   } finally {
     loading.value = false
   }

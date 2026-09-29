@@ -1550,7 +1550,10 @@ export async function vendureRequest(path: string, options: { token?: string; da
     })
   })
   if (res.statusCode < 200 || res.statusCode >= 300) {
-    throw new Error(res.data?.message || `Vendure 请求失败(${res.statusCode})`)
+    // 附带 statusCode：调用方可据此区分「配置有误(400)」与「临时失败(网络/5xx)」
+    const err: any = new Error(res.data?.message || `Vendure 请求失败(${res.statusCode})`)
+    err.statusCode = res.statusCode
+    throw err
   }
   return res.data
 }

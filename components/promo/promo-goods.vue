@@ -3,8 +3,8 @@
   <view v-if="isVendure" class="promo-card promo-goods">
     <text v-if="title" class="section-title">{{ title }}</text>
     <view v-if="vLoading" class="goods-state"><text>加载中...</text></view>
-    <view v-else-if="vError" class="goods-state goods-state--retry" @click="loadVendure">
-      <text>加载失败，点击重试</text>
+    <view v-else-if="vErrMsg" class="goods-state goods-state--retry" @click="loadVendure">
+      <text>{{ vErrMsg }}</text>
     </view>
     <view v-else-if="!vendureGoods.length" class="goods-state"><text>暂无商品</text></view>
     <view v-else>
@@ -78,7 +78,9 @@ const price = (g: any) => goodsPriceText(g)
 const isVendure = computed(() => props.config?.source === 'vendure')
 const vendureGoods = ref<any[]>([])
 const vLoading = ref(false)
-const vError = ref(false)
+// 失败文案：400 = 渠道/参数配置有误（服务端已明确回传原因），对用户统一为「暂不可用」，
+// 原始原因打 console 便于运营排查；其余（网络/5xx）提示可重试
+const vErrMsg = ref('')
 
 const vImage = (g: any) => (g?.image ? `${VENDURE_ASSET_URL}/${g.image}` : PROMO_DEFAULT_GOODS_IMAGE)
 const vPrice = (g: any) => (g?.priceConfigured === false ? '到店询价' : (g?.priceFromText || '到店询价'))
@@ -93,7 +95,7 @@ async function loadVendure() {
   // 运营端已选定商品：只按 config.productIds 顺序展示（优先级高于 collection/onsale）
   const ids: string[] = Array.isArray(cfg.productIds) ? cfg.productIds.map((i: any) => String(i)).filter(Boolean) : []
   vLoading.value = true
-  vError.value = false
+  vErrMsg.value = ''
   try {
     const res = await fetchVendureCandidates({
       token: cfg.channelToken,
@@ -104,8 +106,11 @@ async function loadVendure() {
     })
     const list = Array.isArray(res?.products) ? res.products : []
     vendureGoods.value = ids.length ? reorderByIds(list, ids) : list
-  } catch (e) {
-    vError.value = true
+  } catch (e: any) {
+    // 400：渠道 token / 参数配置有误（服务端回传确切原因），不向用户暴露技术细节
+    const badConfig = e?.statusCode === 400
+    if (badConfig) console.warn('[promo-goods] Vendure 候选商品配置有误：', e?.message)
+    vErrMsg.value = badConfig ? '商品暂时无法展示，请联系客服' : '加载失败，点击重试'
     vendureGoods.value = []
   } finally {
     vLoading.value = false

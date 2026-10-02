@@ -1,6 +1,7 @@
 <template>
   <view class="promo-card promo-images">
     <text v-if="title" class="section-title">{{ title }}</text>
+    <text v-if="desc" class="images-desc">{{ desc }}</text>
     <view v-if="images.length" class="image-grid">
       <image
         v-for="(src, index) in images"
@@ -24,6 +25,7 @@ const props = defineProps<{
 }>()
 
 const title = computed(() => props.config?.title || '')
+const desc = computed(() => props.config?.desc || '')
 const images = computed<string[]>(() => (props.config?.images || []).map((m: any) => resolveMediaUrl(m)))
 </script>
 
@@ -34,6 +36,14 @@ const images = computed<string[]>(() => (props.config?.images || []).map((m: any
   font-weight: bold;
   color: var(--c-text);
   margin-bottom: 20rpx;
+}
+
+.images-desc {
+  display: block;
+  margin: -8rpx 0 20rpx;
+  font-size: 26rpx;
+  color: var(--c-text-dim);
+  line-height: 1.6;
 }
 
 .image-grid {

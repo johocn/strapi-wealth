@@ -36,6 +36,20 @@ export const VENDURE_URL = import.meta.env?.VITE_VENDURE_URL ?? 'https://e.joho.
 // Vendure Asset 静态资源前缀（候选接口返回的 image 是相对路径）
 export const VENDURE_ASSET_URL = `${VENDURE_URL}/assets`
 
+// 商城 H5（vshop）基址：候选接口返回的 link（/pkg-product/pages/detail?slug=…）属商城应用路由，
+// 活动页(v.joho.cn)内不存在该路由，必须按绝对地址跨应用打开；多租户不同域名时用 VITE_SHOP_H5_URL 覆盖
+export const SHOP_H5_URL = (import.meta.env?.VITE_SHOP_H5_URL ?? 'https://e.joho.cn').replace(/\/+$/, '')
+
+/**
+ * 把候选接口返回的站内路由拼成商城 H5 绝对地址（hash 路由）
+ * @param link 相对路由（/pkg-product/...）或已完整的 http(s) 地址
+ */
+export function toShopUrl(link: string | undefined): string {
+  if (!link) return ''
+  if (/^https?:\/\//.test(link)) return link
+  return `${SHOP_H5_URL}/#${link.startsWith('/') ? link : '/' + link}`
+}
+
 export type EnvType = 'wechat' | 'douyin' | 'alipay' | 'h5'
 
 export const getEnv = (): { type: EnvType } => {

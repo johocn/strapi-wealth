@@ -4,8 +4,8 @@
     <text v-if="desc" class="survey-desc">{{ desc }}</text>
     <text v-if="countdownText" class="survey-countdown">{{ countdownText }}</text>
 
-    <!-- 品类 tab（配 1 个 Collection 时不渲染） -->
-    <scroll-view v-if="collections.length > 1" scroll-x class="survey-tabs">
+    <!-- 品类 tab（配 1 个 Collection 时不渲染；按商品挑选时无品类） -->
+    <scroll-view v-if="!byIdsMode && collections.length > 1" scroll-x class="survey-tabs">
       <text
         v-for="(c, i) in collections"
         :key="c.slug"
@@ -59,10 +59,11 @@
     </view>
 
     <!-- 自由输入（隐藏需求） -->
+    <text class="survey-free-label">{{ freeInputLabel }}</text>
     <textarea
       v-model="freeInput"
       class="survey-free"
-      placeholder="还想买什么？直接告诉我们"
+      :placeholder="freeInputPlaceholder"
       maxlength="200"
     />
 
@@ -78,7 +79,7 @@
 <script setup lang="ts">
 import { computed, onMounted, onUnmounted, ref } from 'vue'
 import { fetchVendureCandidates, getMySurveyVote, submitSurveyVote } from '../../services/api'
-import { VENDURE_ASSET_URL } from '../../utils/env'
+import { VENDURE_ASSET_URL, toShopUrl } from '../../utils/env'
 import { PROMO_DEFAULT_GOODS_IMAGE } from '../../utils/promo-goods'
 import { getToken } from '../../utils/storage'
 
@@ -95,6 +96,19 @@ const collections = computed(() => {
   const list = Array.isArray(props.config?.collections) ? props.config.collections : []
   return list.filter((c: any) => c && c.slug)
 })
+/** 运营按商品挑选的候选池（优先于 collections，非空时隐藏品类 tab） */
+const productIds = computed<string[]>(() => {
+  const ids = Array.isArray(props.config?.productIds) ? props.config.productIds : []
+  return ids.map((i: any) => String(i)).filter(Boolean)
+})
+const byIdsMode = computed(() => productIds.value.length > 0)
+
+// 文字补充项：标题与提示语均可由后台配置
+const freeInputLabel = computed(() => props.config?.freeInputLabel || '文字补充')
+const freeInputPlaceholder = computed(() => props.config?.freeInputPlaceholder || '还想买什么？直接告诉我们')
+
+/** 候选商品：按商品挑选时为单列，否则按 Collection 分 tab */
+const PICKED_KEY = '__picked__'
 
 /** 各 tab（Collection）的候选商品 */
 const productsByTab = ref<Record<string, any[]>>({})
@@ -110,6 +124,7 @@ const freeInput = ref('')
 const submitting = ref(false)
 
 const currentProducts = computed(() => {
+  if (byIdsMode.value) return productsByTab.value[PICKED_KEY] || []
   const c = collections.value[activeTab.value]
   return c ? (productsByTab.value[c.slug] || []) : []
 })
@@ -137,31 +152,52 @@ const submitText = computed(() => (isExpired.value ? '本期已截止' : `已勾
 
 // ===== 数据加载 =====
 async function load() {
-  if (!collections.value.length) {
+  if (!byIdsMode.value && !collections.value.length) {
     loading.value = false
     return
   }
   loading.value = true
   loadErrMsg.value = ''
   try {
-    const res = await Promise.all(
-      collections.value.map((c: any) =>
-        fetchVendureCandidates({ token: props.config?.channelToken, collection: c.slug, take: 50 })
+    if (byIdsMode.value) {
+      // 运营已选定商品：只按 productIds 顺序展示（服务端已定序，此处兜底重排）
+      const res = await fetchVendureCandidates({
+        token: props.config?.channelToken,
+        productIds: productIds.value.join(','),
+        take: 100,
+      })
+      const list = Array.isArray(res?.products) ? res.products : []
+      productsByTab.value = { [PICKED_KEY]: reorderByIds(list, productIds.value) }
+      activeTab.value = 0
+    } else {
+      const res = await Promise.all(
+        collections.value.map((c: any) =>
+          fetchVendureCandidates({ token: props.config?.channelToken, collection: c.slug, take: 50 })
+        )
       )
-    )
-    const map: Record<string, any[]> = {}
-    collections.value.forEach((c: any, i: number) => {
-      map[c.slug] = Array.isArray(res[i]?.products) ? res[i].products : []
-    })
-    productsByTab.value = map
+      const map: Record<string, any[]> = {}
+      collections.value.forEach((c: any, i: number) => {
+        map[c.slug] = Array.isArray(res[i]?.products) ? res[i].products : []
+      })
+      productsByTab.value = map
+    }
   } catch (e: any) {
-    // 400：渠道 token / Collection 配置有误（服务端回传确切原因），不向用户暴露技术细节
+    // 400：渠道 token / 候选配置有误（服务端回传确切原因），不向用户暴露技术细节
     const badConfig = e?.statusCode === 400
     if (badConfig) console.warn('[promo-survey] Vendure 候选商品配置有误：', e?.message)
     loadErrMsg.value = badConfig ? '选品暂时无法展示，请联系客服' : '加载失败，点击重试'
   } finally {
     loading.value = false
   }
+}
+
+/** 兜底重排：服务端已按 productIds 定序返回，此处防旧版服务端/缓存导致顺序错乱 */
+function reorderByIds(list: any[], ids: string[]) {
+  const map = new Map(list.map((p: any) => [String(p.id), p]))
+  const ordered = ids.map(id => map.get(id)).filter(Boolean)
+  if (!ordered.length) return list
+  const picked = new Set(ids)
+  return [...ordered, ...list.filter((p: any) => !picked.has(String(p.id)))]
 }
 
 /** 回显「我 · 本渠道 · 本周期」已勾选（未登录静默忽略） */
@@ -238,7 +274,14 @@ function toggleVariant(p: any, v: any) {
 
 function openLink(p: any) {
   if (!p?.linkAvailable || !p?.link) return
-  uni.navigateTo({ url: p.link })
+  const url = toShopUrl(p.link)
+  // #ifdef H5
+  window.location.href = url
+  return
+  // #endif
+  // #ifndef H5
+  uni.navigateTo({ url })
+  // #endif
 }
 
 // ===== 提交 =====
@@ -443,11 +486,19 @@ onUnmounted(() => {
   background: var(--c-primary);
 }
 
+.survey-free-label {
+  display: block;
+  margin-top: 24rpx;
+  font-size: 26rpx;
+  font-weight: bold;
+  color: var(--c-text);
+}
+
 .survey-free {
   box-sizing: border-box;
   width: 100%;
   min-height: 140rpx;
-  margin-top: 20rpx;
+  margin-top: 12rpx;
   padding: 18rpx 20rpx;
   font-size: 26rpx;
   color: var(--c-text);

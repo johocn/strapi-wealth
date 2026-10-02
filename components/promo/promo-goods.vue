@@ -61,7 +61,7 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue'
 import { normalizeGoodsList, goodsPriceText, PROMO_DEFAULT_GOODS_IMAGE } from '../../utils/promo-goods'
-import { resolveMediaUrl, VENDURE_ASSET_URL } from '../../utils/env'
+import { resolveMediaUrl, VENDURE_ASSET_URL, toShopUrl } from '../../utils/env'
 import { fetchVendureCandidates } from '../../services/api'
 
 const props = defineProps<{
@@ -87,7 +87,14 @@ const vPrice = (g: any) => (g?.priceConfigured === false ? '到店询价' : (g?.
 
 function openLink(g: any) {
   if (!g?.linkAvailable || !g?.link) return
-  uni.navigateTo({ url: g.link })
+  const url = toShopUrl(g.link)
+  // #ifdef H5
+  window.location.href = url
+  return
+  // #endif
+  // #ifndef H5
+  uni.navigateTo({ url })
+  // #endif
 }
 
 async function loadVendure() {
